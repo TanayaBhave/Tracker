@@ -28,6 +28,7 @@ export function MealSheet({ onClose, editId }: Props) {
   const [notes, setNotes] = useState('');
   const [saveAsDish, setSaveAsDish] = useState(false);
   const [showDishSuggestions, setShowDishSuggestions] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const existing = useLiveQuery(() => editId ? db.meals.get(editId) : undefined, [editId]);
   const catalogRaw = useLiveQuery(() => db.foodCatalog.where('deleted').equals(0).toArray(), []);
@@ -49,6 +50,11 @@ export function MealSheet({ onClose, editId }: Props) {
     setBurped(existing.burped);
     setReaction(existing.reaction);
     setNotes(existing.notes ?? '');
+    // Auto-expand "More detail" on edit when any of its fields already carry a value.
+    setDetailOpen(!!(
+      existing.texture || existing.pacePosition || existing.oralMotorTags.length
+      || existing.burped || (existing.reaction && existing.reaction !== 'none') || existing.notes
+    ));
   }, [existing]);
 
   const dishQuery = foodName.trim().toLowerCase();
@@ -160,45 +166,62 @@ export function MealSheet({ onClose, editId }: Props) {
           { value: 'other', label: 'Other' },
         ]} />
       </Field>
-      <Field label="Texture" hint="A suspected trigger — worth tagging.">
-        <ChipSelect value={texture} onChange={setTexture} options={[
-          { value: 'smooth-puree', label: 'Smooth' }, { value: 'mashed', label: 'Mashed' },
-          { value: 'lumpy', label: 'Lumpy' }, { value: 'soft-solid', label: 'Soft solid' },
-          { value: 'hard-solid', label: 'Hard solid' }, { value: 'mixed', label: 'Mixed' },
-        ]} />
-      </Field>
       <div style={{ display: 'flex', gap: 10 }}>
         <Field label="Given"><input type="number" inputMode="decimal" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value)} /></Field>
         <Field label="Eaten"><input type="number" inputMode="decimal" value={amountConsumed} onChange={(e) => setAmountConsumed(e.target.value)} /></Field>
         <Field label="Mins"><input type="number" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)} /></Field>
       </div>
-      <Field label="Feeding pace / position">
-        <ChipSelect value={pace} onChange={setPace} options={[
-          { value: 'paced-upright', label: 'Paced, upright', tone: 'calm' },
-          { value: 'fast', label: 'Fast' }, { value: 'lying-back', label: 'Lying back' },
-        ]} />
-      </Field>
-      <Field label="Eating signs">
-        <ChipMulti values={oral} onChange={setOral} options={[
-          { value: 'ate-smoothly', label: 'Ate smoothly', tone: 'calm' },
-          { value: 'gagged', label: 'Gagged' }, { value: 'coughed-choked', label: 'Coughed' },
-          { value: 'spit-food-out', label: 'Spat out' }, { value: 'pocketed-in-cheeks', label: 'Pocketed' },
-          { value: 'trouble-swallowing', label: 'Hard to swallow' }, { value: 'tongue-thrust', label: 'Tongue-thrust' },
-        ]} />
-      </Field>
-      <Field label="Burped after?">
-        <ChipSelect value={burped} onChange={setBurped} options={[
-          { value: 'yes', label: 'Yes', tone: 'calm' }, { value: 'partial', label: 'Partial' }, { value: 'no', label: 'No', tone: 'alert' },
-        ]} />
-      </Field>
-      <Field label="Reaction">
-        <ChipSelect value={reaction} allowClear={false} onChange={(v) => v && setReaction(v)} options={[
-          { value: 'none', label: 'Fine', tone: 'calm' }, { value: 'fussy', label: 'Fussy' },
-          { value: 'gagged', label: 'Gagged' }, { value: 'vomited', label: 'Vomited', tone: 'alert' },
-          { value: 'refused', label: 'Refused' },
-        ]} />
-      </Field>
-      <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+
+      <div className="more-detail">
+        <button
+          type="button"
+          className="more-detail-toggle"
+          onClick={() => setDetailOpen((o) => !o)}
+          aria-expanded={detailOpen}
+        >
+          <span>More detail</span>
+          <span className={`chev ${detailOpen ? 'open' : ''}`}>⌄</span>
+        </button>
+        {detailOpen && (
+          <div className="more-detail-body">
+            <Field label="Texture" hint="A suspected trigger — worth tagging.">
+              <ChipSelect value={texture} onChange={setTexture} options={[
+                { value: 'smooth-puree', label: 'Smooth' }, { value: 'mashed', label: 'Mashed' },
+                { value: 'lumpy', label: 'Lumpy' }, { value: 'soft-solid', label: 'Soft solid' },
+                { value: 'hard-solid', label: 'Hard solid' }, { value: 'mixed', label: 'Mixed' },
+              ]} />
+            </Field>
+            <Field label="Feeding pace / position">
+              <ChipSelect value={pace} onChange={setPace} options={[
+                { value: 'paced-upright', label: 'Paced, upright', tone: 'calm' },
+                { value: 'fast', label: 'Fast' }, { value: 'lying-back', label: 'Lying back' },
+              ]} />
+            </Field>
+            <Field label="Eating signs">
+              <ChipMulti values={oral} onChange={setOral} options={[
+                { value: 'ate-smoothly', label: 'Ate smoothly', tone: 'calm' },
+                { value: 'gagged', label: 'Gagged' }, { value: 'coughed-choked', label: 'Coughed' },
+                { value: 'spit-food-out', label: 'Spat out' }, { value: 'pocketed-in-cheeks', label: 'Pocketed' },
+                { value: 'trouble-swallowing', label: 'Hard to swallow' }, { value: 'tongue-thrust', label: 'Tongue-thrust' },
+              ]} />
+            </Field>
+            <Field label="Burped after?">
+              <ChipSelect value={burped} onChange={setBurped} options={[
+                { value: 'yes', label: 'Yes', tone: 'calm' }, { value: 'partial', label: 'Partial' }, { value: 'no', label: 'No', tone: 'alert' },
+              ]} />
+            </Field>
+            <Field label="Reaction">
+              <ChipSelect value={reaction} allowClear={false} onChange={(v) => v && setReaction(v)} options={[
+                { value: 'none', label: 'Fine', tone: 'calm' }, { value: 'fussy', label: 'Fussy' },
+                { value: 'gagged', label: 'Gagged' }, { value: 'vomited', label: 'Vomited', tone: 'alert' },
+                { value: 'refused', label: 'Refused' },
+              ]} />
+            </Field>
+            <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+          </div>
+        )}
+      </div>
+
       <div className="field">
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <input

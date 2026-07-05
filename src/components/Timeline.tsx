@@ -40,50 +40,50 @@ export function Timeline({
     ]);
     for (const m of meals) if (inDay(m.timestamp)) out.push({
       id: m.id, t: m.timestamp, type: m.type,
-      title: `🍽 ${m.foodItems[0]?.name ?? 'Meal'}`,
+      title: m.foodItems[0]?.name ?? 'Meal',
       meta: [m.texture, m.burped === 'no' ? 'no burp' : null, m.reaction !== 'none' ? m.reaction : null].filter(Boolean).join(' · ') || undefined,
       flag: m.reaction === 'vomited',
     });
     for (const v of vomits) if (inDay(v.timestamp)) out.push({
       id: v.id, t: v.timestamp, type: v.type,
-      title: `🤢 Vomit · ${v.severity}`,
+      title: `Vomit · ${v.severity}`,
       meta: [v.forcefulness, v.appearance, v.bodyPosition].filter(Boolean).join(' · ') || undefined,
       flag: v.appearance === 'bile-green' || v.appearance === 'bloody-streak' || v.forcefulness === 'projectile',
     });
     for (const s of stools) if (inDay(s.timestamp)) out.push({
       id: s.id, t: s.timestamp, type: s.type,
-      title: `💩 Nappy · ${s.consistency}`,
+      title: `Nappy · ${s.consistency}`,
       meta: s.straining ? 'strained' : undefined,
     });
     for (const x of meds) if (inDay(x.timestamp)) out.push({
       id: x.id, t: x.timestamp, type: x.type,
-      title: `💊 ${x.medName}`,
+      title: x.medName,
       meta: x.doseAmount ? `${x.doseAmount} ${x.doseUnit ?? ''}`.trim() : undefined,
     });
     for (const z of sleep) if (inDay(z.startTime)) out.push({
       id: z.id, t: z.startTime, type: z.type,
-      title: `😴 Sleep`,
+      title: `Sleep`,
       meta: z.endTime ? `until ${fmtTime(z.endTime)}` : 'in progress',
     });
     for (const w of weights) if (w.date === dateStr) out.push({
       id: w.id, t: dayAnchor, type: w.type, allDay: true,
-      title: `⚖️ Weight · ${w.weight} ${w.unit}`,
+      title: `Weight · ${w.weight} ${w.unit}`,
       meta: w.notes || undefined,
     });
     for (const g of gas) if (g.date === dateStr) out.push({
       id: g.id, t: dayAnchor, type: g.type, allDay: true,
-      title: `🌀 Gassiness · ${g.level}`,
+      title: `Gassiness · ${g.level}`,
       meta: g.notes || undefined,
       flag: g.level === 'more',
     });
     for (const a of activity) if (a.date === dateStr) out.push({
       id: a.id, t: dayAnchor, type: a.type, allDay: true,
-      title: `🤸 Activity · ${a.level}`,
+      title: `Activity · ${a.level}`,
       meta: a.notes || undefined,
     });
     for (const sy of symptoms) if (sy.date === dateStr) out.push({
       id: sy.id, t: dayAnchor, type: sy.type, allDay: true,
-      title: `📋 Symptoms · ${sy.flags.length} flag${sy.flags.length === 1 ? '' : 's'}`,
+      title: `Symptoms · ${sy.flags.length} flag${sy.flags.length === 1 ? '' : 's'}`,
       meta: sy.flags.join(' · ') || undefined,
       flag: sy.flags.includes('fever') || sy.flags.includes('fewer-wet-diapers'),
     });
@@ -107,11 +107,12 @@ export function Timeline({
           onKeyDown={(e) => e.key === 'Enter' && onSelect?.(r.id, r.type)}
         >
           <div className="time">{r.allDay ? 'day' : fmtTime(r.t)}</div>
+          <div className={`dot tone-${r.type}`} />
           <div className="body">
             <div className="title">{r.title} {r.flag && <span className="tag">• flag</span>}</div>
             {r.meta && <div className="meta">{r.meta}</div>}
           </div>
-          {onSelect && <div style={{ color: 'var(--ink-soft)', fontSize: 18, alignSelf: 'center' }}>›</div>}
+          {onSelect && <div className="chev">›</div>}
         </div>
       ))}
     </div>

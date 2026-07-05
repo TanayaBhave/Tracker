@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baby Tracker UI Preview</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for standard iOS-styled icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #fcf8f2;
+    }
+    /* Hide scrollbars for aesthetic screenshot layout */
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="p-6 md:p-12 overflow-x-auto min-h-screen flex items-start justify-start space-x-8 bg-[#f5efe6]">
+
+  <!-- ================= SCREEN 1: TODAY / HOME ================= -->
+  <div class="w-[375px] h-[812px] bg-[#faf6f0] rounded-[40px] shadow-2xl overflow-hidden flex flex-col shrink-0 border border-neutral-200 relative">
+    <!-- Status Bar -->
+    <div class="px-6 pt-3 pb-2 flex justify-between items-center text-xs font-semibold">
+      <span>9:41</span>
+      <div class="space-x-1 text-[10px]">
+        <i class="fas fa-signal"></i>
+        <i class="fas fa-wifi"></i>
+        <i class="fas fa-battery-full text-sm leading-none align-middle"></i>
+      </div>
+    </div>
+    
+    <!-- Top Header -->
+    <div class="px-6 py-2 flex justify-between items-center">
+      <h1 class="text-3xl font-bold text-neutral-800">Today</h1>
+      <button class="text-neutral-500 hover:text-neutral-800"><i class="fas fa-cog text-xl"></i></button>
+    </div>
+
+    <!-- Quick Add Section -->
+    <div class="px-6 pt-2">
+      <p class="text-[11px] font-bold tracking-wider text-neutral-400 uppercase mb-2">Quick Add</p>
+      <div class="grid grid-cols-5 gap-2">
+        <button class="bg-[#419665] text-white flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-medium"><i class="fas fa-utensils text-base mb-1"></i>Meal</button>
+        <button class="bg-[#df473c] text-white flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-medium"><i class="fas fa-babytext-base mb-1"></i>Vomit</button>
+        <button class="bg-[#8b5a2b] text-white flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-medium"><i class="fas fa-poop text-base mb-1"></i>Stool</button>
+        <button class="bg-[#3b7dc4] text-white flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-medium"><i class="fas fa-moon text-base mb-1"></i>Sleep</button>
+        <button class="bg-[#8e52c7] text-white flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-medium"><i class="fas fa-sliders-h text-base mb-1"></i>Factors</button>
+      </div>
+    </div>
+
+    <!-- Timeline Wrapper -->
+    <div class="flex-1 px-6 pt-6 overflow-y-auto relative">
+      <div class="absolute left-[88px] top-8 bottom-8 w-[2px] bg-neutral-200"></div>
+      
+      <!-- Entry 1 -->
+      <div class="flex items-start mb-6 relative z-10">
+        <div class="w-16 text-right pr-3 pt-0.5 text-xs font-semibold text-neutral-500">9:30 AM</div>
+        <div class="w-4 h-4 rounded-full bg-[#419665] border-4 border-[#faf6f0] mx-2 mt-0.5"></div>
+        <div class="flex-1 pl-1">
+          <p class="font-bold text-sm text-neutral-800">Meal</p>
+          <p class="text-xs text-neutral-500">Sweet Potato, 80ml, lumpy</p>
+        </div>
+      </div>
+
+      <!-- Entry 2 -->
+      <div class="flex items-start mb-6 relative z-10">
+        <div class="w-16 text-right pr-3 pt-0.5 text-xs font-semibold text-neutral-500">10:15 AM</div>
+        <div class="w-4 h-4 rounded-full bg-[#df473c] border-4 border-[#faf6f0] mx-2 mt-0.5"></div>
+        <div class="flex-1 pl-1">
+          <p class="font-bold text-sm text-neutral-800">Vomit</p>
+          <p class="text-xs text-neutral-500">Large, spit-up</p>
+        </div>
+      </div>
+
+      <!-- Entry 3 -->
+      <div class="flex items-start mb-6 relative z-10">
+        <div class="w-16 text-right pr-3 pt-0.5 text-xs font-semibold text-neutral-500">10:45 AM</div>
+        <div class="w-4 h-4 rounded-full bg-[#3b7dc4] border-4 border-[#faf6f0] mx-2 mt-0.5"></div>
+        <div class="flex-1 pl-1">
+          <p class="font-bold text-sm text-neutral-800">Sleep</p>
+          <p class="text-xs text-neutral-500">Start, 1h ago</p>
+        </div>
+      </div>
+
+      <!-- Entry 4 -->
+      <div class="flex items-start mb-6 relative z-10">
+        <div class="w-16 text-right pr-3 pt-0.5 text-xs font-semibold text-neutral-500">11:15 AM</div>
+        <div class="w-4 h-4 rounded-full bg-[#8b5a2b] border-4 border-[#faf6f0] mx-2 mt-0.5"></div>
+        <div class="flex-1 pl-1">
+          <p class="font-bold text-sm text-neutral-800">Stool</p>
+          <p class="text-xs text-neutral-500">Watery, green</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global Nav Bar -->
+    <div class="bg-[#faf6f0] border-t border-neutral-100 px-6 py-2 flex justify-between text-neutral-400 text-[10px] font-medium">
+      <button class="flex flex-col items-center text-neutral-800"><i class="fas fa-calendar-day text-lg mb-0.5"></i>Today</button>
+      <button class="flex flex-col items-center"><i class="fas fa-chart-bar text-lg mb-0.5"></i>Insights</button>
+      <button class="flex flex-col items-center"><i class="fas fa-history text-lg mb-0.5"></i>History</button>
+      <button class="flex flex-col items-center"><i class="fas fa-sliders-h text-lg mb-0.5"></i>Settings</button>
+    </div>
+    <!-- Home Indicator -->
+    <div class="w-32 h-1 bg-black mx-auto my-1.5 rounded-full shrink-0"></div>
+  </div>
+
+
+  <!-- ================= SCREEN 2: LOG SHEET MODAL ================= -->
+  <div class="w-[375px] h-[812px] bg-[#7a7875] rounded-[40px] shadow-2xl overflow-hidden flex flex-col shrink-0 border border-neutral-200 relative">
+    <!-- Simulated Backdrop Overlay UI Content behind the sheet -->
+    <div class="px-6 pt-3 pb-2 flex justify-between items-center text-xs font-semibold text-neutral-400">
+      <span>9:41</span>
+    </div>
+    <div class="px-6 py-2"><div class="w-12 h-12 bg-neutral-600 rounded-xl flex items-center justify-center text-white/50"><i class="fas fa-utensils text-xl"></i></div></div>
+
+    <!-- Active Bottom Sheet Sheet Cover Layout -->
+    <div class="mt-auto bg-[#faf6f0] rounded-t-[32px] flex flex-col max-h-[92%] overflow-hidden shadow-2xl">
+      <!-- Sheet Action Header -->
+      <div class="px-6 pt-4 pb-2 flex justify-between items-center border-b border-neutral-100">
+        <button class="text-neutral-500 text-sm font-medium">Cancel</button>
+        <span class="font-bold text-neutral-800 text-sm">Log Meal</span>
+        <button class="text-neutral-300 text-sm font-medium">Save</button>
+      </div>
+
+      <!-- Scrollable Form UI Fields -->
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <!-- Big Timestamp Selection Pill -->
+        <div class="text-center py-2">
+          <span class="text-2xl font-semibold text-[#295b7a] tracking-wide border-b border-dashed border-neutral-300 pb-0.5">12:30 PM</span>
+        </div>
+
+        <!-- Duration Field Input Wrapper -->
+        <div class="flex justify-between items-center border-b border-neutral-100 pb-2">
+          <span class="text-neutral-700 font-medium">Duration</span>
+          <span class="text-neutral-500 font-semibold">[15 mins]</span>
+        </div>
+
+        <!-- Food items chip selector components -->
+        <div>
+          <span class="block text-neutral-700 font-medium mb-1.5">Food Items</span>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="bg-[#efe7db] text-neutral-800 px-2.5 py-1 rounded-lg font-medium">ChipMulti: Formula</span>
+            <span class="bg-[#efe7db] text-neutral-800 px-2.5 py-1 rounded-lg font-medium">Sweet Potato</span>
+            <span class="bg-[#efe7db] text-neutral-800 px-2.5 py-1 rounded-lg font-medium">Oats</span>
+            <span class="bg-neutral-200 text-neutral-600 px-2.5 py-1 rounded-lg font-bold"><i class="fas fa-plus mr-1"></i>Add New</span>
+          </div>
+        </div>
+
+        <!-- Collapsible Extended Section Details Header Wrapper -->
+        <div class="pt-2 border-t border-neutral-100">
+          <div class="flex justify-between items-center text-neutral-800 font-bold mb-3">
+            <span>Add Meal Detail</span>
+            <i class="fas fa-chevron-up text-xs"></i>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <span class="block text-neutral-500 mb-1">Texture</span>
+              <div class="bg-[#efe7db] text-neutral-700 p-2 rounded-lg font-medium truncate">
+                ChipSelect: Smooth / Mashed] / <span class="bg-[#dcd1be] px-1 rounded">Lumpy</span> / Solid
+              </div>
+            </div>
+
+            <div>
+              <span class="block text-neutral-500 mb-1">Reaction</span>
+              <div class="bg-[#efe7db] text-neutral-700 p-2 rounded-lg font-medium truncate">
+                ChipSelect: <span class="bg-[#dcd1be] px-1 rounded">[None]</span> / Fussy / Gag / Refuse
+              </div>
+            </div>
+
+            <div>
+              <span class="block text-neutral-500 mb-1">Burped</span>
+              <div class="bg-[#efe7db] text-neutral-700 p-2 rounded-lg font-medium">
+                ChipSelect: Yes / <span class="bg-[#dcd1be] px-1 rounded">[No]</span>
+              </div>
+            </div>
+
+            <!-- Auto calculations UI indicator notification widget component -->
+            <div class="bg-[#f2e6d8] border border-[#e3d1ba] text-neutral-700 p-2.5 rounded-xl">
+              <p class="font-bold text-[10px] text-neutral-500 uppercase tracking-wide">Overfeeding flag (auto-calculated hint)</p>
+              <p class="mt-0.5 text-neutral-800 font-medium">Meal feels closely-spaced</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Device Bottom Footer Indicator Frame padding integration layout -->
+      <div class="w-32 h-1 bg-black mx-auto my-1.5 rounded-full shrink-0"></div>
+    </div>
+  </div>
+
+
+  <!-- ================= SCREEN 3: EXPLORE TRENDS PLOTTER ================= -->
+  <div class="w-[375px] h-[812px] bg-[#faf6f0] rounded-[40px] shadow-2xl overflow-hidden flex flex-col shrink-0 border border-neutral-200 relative">
+    <div class="px-6 pt-3 pb-2 flex justify-between items-center text-xs font-semibold">
+      <span>9:41</span>
+      <div class="space-x-1 text-[10px]"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full text-sm"></i></div>
+    </div>
+    
+    <div class="px-6 py-2">
+      <h1 class="text-2xl font-bold text-neutral-800">Explore Trends</h1>
+    </div>
+
+    <!-- UI Builder Controls Config Selection Field Blocks Stack Layout -->
+    <div class="px-6 space-y-3 pt-1 text-xs">
+      <div>
+        <label class="block text-neutral-700 font-bold mb-1">Outcome (Y-Axis)</label>
+        <div class="bg-white border border-neutral-200 px-3 py-2 rounded-xl flex justify-between items-center text-neutral-800 font-medium shadow-sm">
+          <span>Vomit Frequency</span><i class="fas fa-chevron-down text-neutral-400"></i>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-neutral-700 font-bold mb-1">Series (X-Axis)</label>
+        <div class="bg-white border border-neutral-200 px-3 py-2 rounded-xl flex justify-between items-center text-neutral-800 font-medium shadow-sm mb-1.5">
+          <span>Foods/Ingredients</span><i class="fas fa-chevron-down text-neutral-400"></i>
+        </div>
+        <div class="bg-[#efe7db] text-neutral-700 px-3 py-1.5 rounded-lg flex items-center font-medium">
+          <i class="fas fa-arrow-right mr-1.5 text-neutral-400"></i>[All Foods] <i class="fas fa-arrow-right mx-1 text-neutral-400"></i> <span class="bg-[#dcd1be] px-1.5 py-0.5 rounded ml-1 text-neutral-800 font-bold">Sweet Potato</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-neutral-700 font-bold mb-1">Range</label>
+        <div class="bg-white border border-neutral-200 px-3 py-2 rounded-xl flex justify-between items-center text-neutral-800 font-medium shadow-sm">
+          <span>Last 30 Days</span><i class="fas fa-chevron-down text-neutral-400"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Container Render Board Module Wrapper Layout Area -->
+    <div class="flex-1 px-6 pt-5 pb-2 flex flex-col justify-end">
+      <div class="bg-white border border-neutral-200 rounded-2xl p-4 flex-1 flex flex-col shadow-sm">
+        <div class="text-center mb-4">
+          <p class="text-xs font-bold text-neutral-800"><span class="text-[#419665]">Sweet Potato</span> episodes: 12</p>
+          <p class="text-[10px] text-neutral-400 font-medium">Total vomit episodes: 34.</p>
+        </div>
+        
+        <!-- Mock Histogram Canvas Elements Block Bar Vector Simulation Graph Layout UI -->
+        <div class="flex-1 flex items-end justify-between px-2 pb-2 relative border-b border-l border-neutral-200">
+          <!-- Horizontal dashed guides elements markers mock structures stack rendering lines -->
+          <div class="absolute inset-x-0 top-1/4 border-t border-dashed border-neutral-100 pointer-events-none"></div>
+          <div class="absolute inset-x-0 top-2/4 border-t border-dashed border-neutral-100 pointer-events-none"></div>
+          <div class="absolute inset-x-0 top-3/4 border-t border-dashed border-neutral-100 pointer-events-none"></div>
+
+          <!-- Column 1 -->
+          <div class="w-6 flex flex-col items-center justify-end h-full group relative">
+            <div class="w-2.5 bg-[#419665] rounded-full absolute bottom-[42%] z-20 h-2.5 border border-white"></div>
+            <div class="w-4 bg-neutral-200 rounded-t h-[55%]"></div>
+          </div>
+          <!-- Column 2 -->
+          <div class="w-6 flex flex-col items-center justify-end h-full group relative">
+            <div class="w-2.5 bg-[#419665] rounded-full absolute bottom-[68%] z-20 h-2.5 border border-white"></div>
+            <div class="w-4 bg-neutral-200 rounded-t h-[40%]"></div>
+          </div>
+          <!-- Column 3 -->
+          <div class="w-6 flex flex-col items-center justify-end h-full group relative">
+            <div class="w-2.5 bg-[#419665] rounded-full absolute bottom-[82%] z-20 h-2.5 border border-white"></div>
+            <div class="w-4 bg-neutral-200 rounded-t h-[88%]"></div>
+          </div>
+          <!-- Column 4 -->
+          <div class="w-6 flex flex-col items-center justify-end h-full group relative">
+            <div class="w-2.5 bg-[#419665] rounded-full absolute bottom-[55%] z-20 h-2.5 border border-white"></div>
+            <div class="w-4 bg-neutral-200 rounded-t h-[65%]"></div>
+          </div>
+          <!-- Column 5 -->
+          <div class="w-6 flex flex-col items-center justify-end h-full group relative">
+            <div class="w-2.5 bg-[#419665] rounded-full absolute bottom-[72%] z-20 h-2.5 border border-white"></div>
+            <div class="w-4 bg-neutral-200 rounded-t h-[45%]"></div>
+          </div>
+          <!-- Column 6 -->
+          <div class="w-6 flex flex-col items-center justify-end h-full group relative">
+            <div class="w-2.5 bg-[#419665] rounded-full absolute bottom-[90%] z-20 h-2.5 border border-white"></div>
+            <div class="w-4 bg-neutral-200 rounded-t h-[80%]"></div>
+          </div>
+        </div>
+        
+        <!-- Graph X Labels Display Metrics Row Block Layer -->
+        <div class="flex justify-between text-[9px] text-neutral-400 font-bold px-2 pt-1.5">
+          <span class="w-6 text-center">Day</span>
+          <span class="w-6 text-center">Tue</span>
+          <span class="w-6 text-center">Wed</span>
+          <span class="w-6 text-center">Thu</span>
+          <span class="w-6 text-center">Sun</span>
+          <span class="w-6 text-center">Mon</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Bar Anchor Context Structure Placement Frame block -->
+    <div class="bg-[#faf6f0] border-t border-neutral-100 px-6 py-2 flex justify-between text-neutral-400 text-[10px] font-medium">
+      <button class="flex flex-col items-center"><i class="fas fa-calendar-day text-lg mb-0.5"></i>Today</button>
+      <button class="flex flex-col items-center text-neutral-800"><i class="fas fa-chart-bar text-lg mb-0.5"></i>Insights</button>
+      <button class="flex flex-col items-center"><i class="fas fa-history text-lg mb-0.5"></i>History</button>
+      <button class="flex flex-col items-center"><i class="fas fa-sliders-h text-lg mb-0.5"></i>Settings</button>
+    </div>
+    <div class="w-32 h-1 bg-black mx-auto my-1.5 rounded-full shrink-0"></div>
+  </div>
+
+
+  <!-- ================= SCREEN 4: EXPORT REE-READY REPORT ================= -->
+  <div class="w-[375px] h-[812px] bg-[#faf6f0] rounded-[40px] shadow-2xl overflow-hidden flex flex-col shrink-0 border border-neutral-200 relative">
+    <div class="px-6 pt-3 pb-2 flex justify-between items-center text-xs font-semibold">
+      <span>9:41</span>
+      <div class="space-x-1 text-[10px]"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full text-sm"></i></div>
+    </div>
+    
+    <div class="px-6 py-2">
+      <h1 class="text-2xl font-bold text-neutral-800">Export GI Report</h1>
+    </div>
+
+    <!-- Configuration Selection Panel controls layout wrap area -->
+    <div class="px-6 pt-1 space-y-3 text-xs">
+      <div>
+        <label class="block text-neutral-700 font-bold mb-1">Config</label>
+        <div class="bg-white border border-neutral-200 px-3 py-2 rounded-xl text-neutral-500 font-medium shadow-sm truncate">
+          Select Date Range [Start Date] [End Date]
+        </div>
+      </div>
+      <button class="w-full bg-[#d5cbbe] text-neutral-800 font-bold py-2.5 rounded-xl shadow-sm text-center">Generate Report</button>
+    </div>
+
+    <!-- Simulated Document Output Live Preview Mockup Paper elements stacking structure layout viewport -->
+    <div class="flex-1 px-6 pt-4 pb-2 flex flex-col justify-end overflow-hidden relative">
+      <p class="text-[11px] font-bold tracking-wider text-neutral-400 uppercase mb-1.5 px-1">Preview Mock</p>
+      
+      <!-- Stacking Papers Shadow Layers Realized Effect components -->
+      <div class="flex-1 bg-white border border-neutral-200 rounded-t-xl p-4 shadow-lg overflow-y-auto relative text-[10px] text-neutral-800">
+        <!-- Back Stack Overlay Mockups Visual Accents borders background positioning layouts -->
+        <div class="absolute inset-x-2 -top-1 h-1 bg-neutral-100 border border-neutral-200 rounded-t-lg shadow-sm"></div>
+        
+        <!-- Report Header Section details formatting card layer inside printable frame layout sheet -->
+        <div class="border border-neutral-200 rounded-lg p-2.5 mb-3 bg-neutral-50">
+          <p class="font-bold text-neutral-700 uppercase tracking-wide text-[9px] mb-1 text-center">Weight Chart</p>
+          <!-- Weight trend line simulation vector trace graph path mock -->
+          <div class="h-10 border-b border-neutral-200 relative mt-2 flex items-end">
+            <svg class="w-full h-full text-[#3b7dc4]" viewBox="0 0 100 40" preserveAspectRatio="none">
+              <path d="M0,35 Q25,32 50,20 T100,5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Clinical analytics summaries breakdown presentation matrix blocks fields layer content -->
+        <div class="space-y-3">
+          <div>
+            <p class="font-bold text-xs text-neutral-800 border-b border-neutral-200 pb-0.5 mb-1">Vomit Analysis</p>
+            <p class="text-neutral-600 font-medium">45 episodes total, 3 projectile, 38 spit-up</p>
+            <p class="font-bold text-neutral-700">Appearance: <span class="font-normal text-neutral-600">30 milky, 5 bile-green</span> (<span class="text-red-500">⚠️</span>)</p>
+          </div>
+
+          <div>
+            <p class="font-bold text-xs text-neutral-800 border-b border-neutral-200 pb-0.5 mb-1">Suspect Foods</p>
+            <table class="w-full text-left mt-1 border-collapse text-[9px]">
+              <thead>
+                <tr class="bg-neutral-100 font-bold text-neutral-500">
+                  <th class="p-1 rounded-l"></th>
+                  <th class="p-1">12 exp</th>
+                  <th class="p-1 rounded-r">6 vomits</th>
+                </tr>
+              </thead>
+              <tbody class="font-medium">
+                <tr class="border-b border-neutral-100"><td class="p-1 font-bold">Sweet Potato</td><td class="p-1 text-neutral-500">12 exp</td><td class="p-1 font-bold">6</td></tr>
+                <tr class="border-b border-neutral-100"><td class="p-1 font-bold">Oats</td><td class="p-1 text-neutral-500">10 exp</td><td class="p-1 font-bold">2</td></tr>
+                <tr class="border-b border-neutral-100"><td class="p-1 font-bold">Formula</td><td class="p-1 text-neutral-500">45 exp</td><td class="p-1 font-bold">10</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <p class="font-bold text-xs text-neutral-800 border-b border-neutral-200 pb-0.5 mb-1">Other Findings</p>
+            <p class="font-bold text-neutral-700">Constipation <span class="font-normal text-neutral-600">gap max 3 days</span></p>
+            <p class="font-bold text-neutral-700">Oral-motor signs: <span class="font-normal text-neutral-600">15 gag events</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Device Navigation Indicator block template line padding spacing structural border element box -->
+    <div class="w-32 h-1 bg-black mx-auto my-1.5 rounded-full shrink-0"></div>
+  </div>
+
+</body>
+</html>

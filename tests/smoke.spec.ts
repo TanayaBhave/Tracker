@@ -21,9 +21,9 @@ test.describe('meal lifecycle', () => {
     await page.goto('/');
 
     await expect(page.locator('nav.nav')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Log' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Today' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'History' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Charts' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Insights' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
 
     await expect(page.locator('.quickgrid')).toBeVisible();

@@ -15,21 +15,19 @@ export function Sheet({
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="grip" />
-        <h2>{title}</h2>
-        {warn && <div className="warn-banner">{warn}</div>}
-        {children}
-        <div className="sheet-actions">
+        <div className="sheet-header">
+          <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+          <h2>{title}</h2>
+          <button type="button" className="btn save" onClick={onSave}>{saveLabel}</button>
+        </div>
+        <div className="sheet-body">
+          {warn && <div className="warn-banner">{warn}</div>}
+          {children}
           {onDelete && (
-            <button
-              className="btn ghost"
-              style={{ flex: '0 0 auto', color: 'var(--alert)' }}
-              onClick={onDelete}
-            >
+            <button type="button" className="btn ghost sheet-delete" onClick={onDelete}>
               Delete
             </button>
           )}
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn save" onClick={onSave}>{saveLabel}</button>
         </div>
       </div>
     </div>
