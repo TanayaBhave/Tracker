@@ -1,0 +1,10 @@
+# Keep the build context small and reproducible — deps are installed and the
+# frontend is built INSIDE the image; local artifacts must never leak in.
+node_modules
+server/node_modules
+dist
+data
+.git
+docs
+# Secrets: compose reads .env at runtime via env_file; it must not enter the image.
+.env
