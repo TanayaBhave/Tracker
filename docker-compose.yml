@@ -1,11 +1,13 @@
 services:
   app:
     build: .
-    # Published on all interfaces so tailscale serve (host-level) can reach it.
-    # If you want it unreachable from the plain LAN too, use "127.0.0.1:8080:8080"
-    # — tailscale serve forwards to localhost, so HTTPS access keeps working.
+    # Host port comes from APP_PORT in .env (default 8081; container always
+    # listens on 8080 internally). Published on all interfaces so tailscale
+    # serve (host-level) can reach it. If you want it unreachable from the
+    # plain LAN too, use "127.0.0.1:${APP_PORT:-8081}:8080" — tailscale serve
+    # forwards to localhost, so HTTPS access keeps working.
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-8081}:8080"
     volumes:
       # SQLite database (baby.sqlite + -wal/-shm) survives rebuilds/restarts.
       - ./data:/data

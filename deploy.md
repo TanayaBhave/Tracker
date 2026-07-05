@@ -1,9 +1,10 @@
 # Deploy runbook — home Linux server (tailnet-only)
 
-One Docker container serves the API **and** the built PWA on port 8080.
-HTTPS (mandatory for iOS PWA install, the service worker, and camera access)
-is provided at the host level by `tailscale serve`, tailnet-only — **no
-Funnel, nothing public**.
+One Docker container serves the API **and** the built PWA. The host port is
+set by `APP_PORT` in `.env` (default **8081**; the container always listens
+on 8080 internally — pick any free host port). HTTPS (mandatory for iOS PWA
+install, the service worker, and camera access) is provided at the host level
+by `tailscale serve`, tailnet-only — **no Funnel, nothing public**.
 
 ## 1. Prerequisites
 
@@ -23,14 +24,15 @@ git clone <repo-url> tracker && cd tracker
 
 cp .env.example .env
 openssl rand -base64 32     # → paste as SYNC_TOKEN in .env
-$EDITOR .env                # USDA_API_KEY can stay empty until the nutrition phase
+$EDITOR .env                # set APP_PORT to a free host port (default 8081);
+                            # USDA_API_KEY can stay empty until the nutrition phase
 ```
 
 ## 3. Build + start
 
 ```bash
 docker compose up -d --build
-curl http://localhost:8080/api/health     # expect HTTP 200
+curl http://localhost:8081/api/health     # expect HTTP 200 (use your APP_PORT)
 docker compose logs -f app                # if anything looks off
 ```
 
@@ -51,11 +53,11 @@ public exposure is a separate command (`tailscale funnel`), which we do NOT use.
 -->
 
 ```bash
-tailscale serve --bg localhost:8080
+tailscale serve --bg localhost:8081     # target = your APP_PORT
 ```
 
 This terminates TLS with a real (Let's Encrypt) certificate and forwards
-HTTPS :443 → `http://localhost:8080`, visible **only inside your tailnet**.
+HTTPS :443 → `http://localhost:8081`, visible **only inside your tailnet**.
 `--bg` keeps it running after you close the shell and across reboots.
 If you get a permission error, prefix `sudo` (or set
 `tailscale set --operator=$USER` once).
@@ -65,14 +67,14 @@ Check it:
 ```bash
 tailscale serve status
 # https://<hostname>.<tailnet-name>.ts.net/
-#   |-- proxy http://localhost:8080
+#   |-- proxy http://localhost:8081
 ```
 
 Your app URL is `https://<hostname>.<tailnet-name>.ts.net` — find the exact
 name with `tailscale status` or in the admin console. Open it in a browser on
 the tailnet and confirm the app loads with a padlock.
 
-To turn it off later: `tailscale serve --https=443 localhost:8080 off`
+To turn it off later: `tailscale serve --https=443 localhost:8081 off`
 (or nuke everything with `tailscale serve reset`).
 
 ## 5. Install on both iPhones
@@ -141,7 +143,7 @@ guaranteed-consistent snapshot, `docker compose stop app`, copy, then
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | App loads but sync fails with **401** | Token on the phone ≠ `SYNC_TOKEN` in `.env` (typo, trailing whitespace, or `.env` edited without restart) | Re-paste the token on the phone; after editing `.env`, run `docker compose up -d` to recreate the container |
-| `curl http://localhost:8080/api/health` fails | Container not running or crashed on boot | `docker compose ps`, then `docker compose logs app`; rebuild with `docker compose up -d --build` |
+| `curl http://localhost:<APP_PORT>/api/health` fails | Container not running or crashed on boot; or the port is taken by another app | `docker compose ps`, then `docker compose logs app`; if the port is busy (`bind: address already in use`), pick a different `APP_PORT` in `.env`, `docker compose up -d`, and re-point tailscale serve at the new port |
 | `https://…ts.net` shows cert warning or times out | MagicDNS/HTTPS not enabled in the admin console, or serve not running | Enable both under DNS in the admin console; `tailscale serve status`; re-run the serve command; first cert issuance can take ~30 s |
 | Phone can't reach the URL at all | Phone's Tailscale app disconnected | Open Tailscale on the phone, toggle the connection on |
 | Build fails inside `npm ci --omit=dev` mentioning `better-sqlite3`, `node-gyp`, or `prebuild` | Native-module compile hiccup / stale cached layer | `docker compose build --no-cache && docker compose up -d` — the image already ships python3/make/g++ in the deps stage, so a clean rebuild compiles it from source |
