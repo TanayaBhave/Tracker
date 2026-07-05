@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, baseFields } from '../db';
 
@@ -19,8 +19,21 @@ export function IngredientPicker({ value, onChange }: Props) {
   );
   const exactMatch = query ? all.some((i) => i.name.toLowerCase() === query) : true;
 
+  // Latest selection, eagerly updated so adds that overlap an in-flight
+  // ingredient create chain together instead of clobbering each other.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  function addId(id: string) {
+    const cur = valueRef.current;
+    if (cur.includes(id)) return;
+    const next = [...cur, id];
+    valueRef.current = next;
+    onChange(next);
+  }
+
   function select(id: string) {
-    if (!value.includes(id)) onChange([...value, id]);
+    addId(id);
     setText('');
   }
 
@@ -33,9 +46,12 @@ export function IngredientPicker({ value, onChange }: Props) {
     if (!trimmed) return;
     const existing = all.find((i) => i.name.toLowerCase() === trimmed.toLowerCase());
     if (existing) { select(existing.id); return; }
+    // Clear the input now, synchronously with the tap — never after the await,
+    // where it would wipe whatever the user has started typing next.
+    setText('');
     const rec = { ...baseFields(), type: 'ingredient' as const, name: trimmed, tags: [] as string[] };
     await db.ingredients.add(rec);
-    select(rec.id);
+    addId(rec.id);
   }
 
   function handleEnter() {
