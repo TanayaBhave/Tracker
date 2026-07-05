@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { db, baseFields, todayStr } from '../../db';
 import { Sheet } from '../Sheet';
 import { Field, ChipMulti } from '../Fields';
@@ -10,18 +11,50 @@ const SYMPTOM_OPTS = [
   { value: 'drooling-teething', label: 'Teething' }, { value: 'fever', label: 'Fever', tone: 'alert' as const },
   { value: 'fewer-wet-diapers', label: 'Fewer wet nappies', tone: 'alert' as const },
 ];
-export function SymptomSheet({ onClose }: { onClose: () => void }) {
+
+type Props = { onClose: () => void; editId?: string };
+
+export function SymptomSheet({ onClose, editId }: Props) {
   const [date, setDate] = useState(todayStr());
   const [flags, setFlags] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const redFlag = flags.includes('fever') || flags.includes('fewer-wet-diapers');
+
+  const existing = useLiveQuery(() => editId ? db.symptoms.get(editId) : undefined, [editId]);
+
+  useEffect(() => {
+    if (!existing) return;
+    setDate(existing.date);
+    setFlags(existing.flags);
+    setNotes(existing.notes ?? '');
+  }, [existing]);
+
   async function save() {
-    await db.symptoms.add({ ...baseFields(), type: 'symptom', date, flags, notes: notes || undefined });
+    const fields = {
+      date, flags, notes: notes || undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    if (editId && existing) {
+      await db.symptoms.put({ ...existing, ...fields });
+    } else {
+      await db.symptoms.add({ ...baseFields(), type: 'symptom', ...fields });
+    }
     onClose();
   }
+
+  async function handleDelete() {
+    if (!editId || !window.confirm('Delete this symptom entry?')) return;
+    await db.symptoms.update(editId, { deleted: 1, updatedAt: new Date().toISOString() });
+    onClose();
+  }
+
   return (
-    <Sheet title="Symptoms today" onClose={onClose} onSave={save}
-      warn={redFlag ? 'Fever or fewer wet nappies can need prompt attention. Consider contacting your doctor.' : undefined}>
+    <Sheet
+      title={editId ? 'Edit symptoms' : 'Symptoms today'}
+      onClose={onClose} onSave={save}
+      onDelete={editId ? handleDelete : undefined}
+      warn={redFlag ? 'Fever or fewer wet nappies can need prompt attention. Consider contacting your doctor.' : undefined}
+    >
       <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field label="Present today"><ChipMulti values={flags} onChange={setFlags} options={SYMPTOM_OPTS} /></Field>
       <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>

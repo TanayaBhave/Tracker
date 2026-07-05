@@ -1,7 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 
-type Row = { id: string; t: string; title: string; meta?: string; flag?: boolean; type: string };
+type Row = {
+  id: string; t: string; title: string; meta?: string; flag?: boolean; type: string;
+  allDay?: boolean;
+};
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -19,14 +22,21 @@ export function Timeline({
     const dayStart = startOfDay(new Date(dateStr + 'T00:00')).toISOString();
     const dayEnd = new Date(new Date(dayStart).getTime() + 86400000).toISOString();
     const inDay = (iso?: string) => !!iso && iso >= dayStart && iso < dayEnd;
+    // Daily records sort at the start of the day (bottom of the descending list).
+    // Use the UTC ISO of local midnight so it compares correctly with event timestamps.
+    const dayAnchor = dayStart;
 
     const out: Row[] = [];
-    const [meals, vomits, stools, meds, sleep] = await Promise.all([
+    const [meals, vomits, stools, meds, sleep, weights, gas, activity, symptoms] = await Promise.all([
       db.meals.where('deleted').equals(0).toArray(),
       db.vomits.where('deleted').equals(0).toArray(),
       db.stools.where('deleted').equals(0).toArray(),
       db.meds.where('deleted').equals(0).toArray(),
       db.sleep.where('deleted').equals(0).toArray(),
+      db.weights.where('deleted').equals(0).toArray(),
+      db.gassiness.where('deleted').equals(0).toArray(),
+      db.activity.where('deleted').equals(0).toArray(),
+      db.symptoms.where('deleted').equals(0).toArray(),
     ]);
     for (const m of meals) if (inDay(m.timestamp)) out.push({
       id: m.id, t: m.timestamp, type: m.type,
@@ -55,6 +65,28 @@ export function Timeline({
       title: `😴 Sleep`,
       meta: z.endTime ? `until ${fmtTime(z.endTime)}` : 'in progress',
     });
+    for (const w of weights) if (w.date === dateStr) out.push({
+      id: w.id, t: dayAnchor, type: w.type, allDay: true,
+      title: `⚖️ Weight · ${w.weight} ${w.unit}`,
+      meta: w.notes || undefined,
+    });
+    for (const g of gas) if (g.date === dateStr) out.push({
+      id: g.id, t: dayAnchor, type: g.type, allDay: true,
+      title: `🌀 Gassiness · ${g.level}`,
+      meta: g.notes || undefined,
+      flag: g.level === 'more',
+    });
+    for (const a of activity) if (a.date === dateStr) out.push({
+      id: a.id, t: dayAnchor, type: a.type, allDay: true,
+      title: `🤸 Activity · ${a.level}`,
+      meta: a.notes || undefined,
+    });
+    for (const sy of symptoms) if (sy.date === dateStr) out.push({
+      id: sy.id, t: dayAnchor, type: sy.type, allDay: true,
+      title: `📋 Symptoms · ${sy.flags.length} flag${sy.flags.length === 1 ? '' : 's'}`,
+      meta: sy.flags.join(' · ') || undefined,
+      flag: sy.flags.includes('fever') || sy.flags.includes('fewer-wet-diapers'),
+    });
     out.sort((a, b) => b.t.localeCompare(a.t));
     return out;
   }, [dateStr]);
@@ -74,7 +106,7 @@ export function Timeline({
           onClick={() => onSelect?.(r.id, r.type)}
           onKeyDown={(e) => e.key === 'Enter' && onSelect?.(r.id, r.type)}
         >
-          <div className="time">{fmtTime(r.t)}</div>
+          <div className="time">{r.allDay ? 'day' : fmtTime(r.t)}</div>
           <div className="body">
             <div className="title">{r.title} {r.flag && <span className="tag">• flag</span>}</div>
             {r.meta && <div className="meta">{r.meta}</div>}

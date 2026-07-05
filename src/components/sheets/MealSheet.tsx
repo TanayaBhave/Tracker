@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, baseFields, nowLocalISO, isoToLocal } from '../../db';
 import type {
-  Meal, FoodItem, MealReaction, Texture, PacePosition, OralMotorTag, Burped,
+  Meal, FoodItem, FoodCatalogItem, MealReaction, Texture, PacePosition, OralMotorTag, Burped,
 } from '../../db';
 import { Sheet } from '../Sheet';
 import { Field, ChipSelect, ChipMulti } from '../Fields';
+import { IngredientPicker } from '../IngredientPicker';
 
 type Props = { onClose: () => void; editId?: string };
 const toISO = (local: string) => new Date(local).toISOString();
@@ -13,7 +14,8 @@ const toISO = (local: string) => new Date(local).toISOString();
 export function MealSheet({ onClose, editId }: Props) {
   const [when, setWhen] = useState(nowLocalISO());
   const [foodName, setFoodName] = useState('');
-  const [ingredients, setIngredients] = useState('');
+  const [catalogId, setCatalogId] = useState<string>();
+  const [ingredientIds, setIngredientIds] = useState<string[]>([]);
   const [category, setCategory] = useState<FoodItem['category']>('puree');
   const [amountGiven, setAmountGiven] = useState('');
   const [amountConsumed, setAmountConsumed] = useState('');
@@ -24,13 +26,19 @@ export function MealSheet({ onClose, editId }: Props) {
   const [burped, setBurped] = useState<Burped>();
   const [reaction, setReaction] = useState<MealReaction>('none');
   const [notes, setNotes] = useState('');
+  const [saveAsDish, setSaveAsDish] = useState(false);
+  const [showDishSuggestions, setShowDishSuggestions] = useState(false);
 
   const existing = useLiveQuery(() => editId ? db.meals.get(editId) : undefined, [editId]);
+  const catalogRaw = useLiveQuery(() => db.foodCatalog.where('deleted').equals(0).toArray(), []);
+  const catalog = useMemo(() => catalogRaw ?? [], [catalogRaw]);
 
   useEffect(() => {
     if (!existing) return;
     setWhen(isoToLocal(existing.timestamp));
     setFoodName(existing.foodItems[0]?.name ?? '');
+    setCatalogId(existing.foodItems[0]?.catalogId);
+    setIngredientIds(existing.foodItems[0]?.ingredientIds ?? []);
     setCategory(existing.foodItems[0]?.category ?? 'puree');
     setAmountGiven(existing.foodItems[0]?.amountGiven?.toString() ?? '');
     setAmountConsumed(existing.foodItems[0]?.amountConsumed?.toString() ?? '');
@@ -40,39 +48,66 @@ export function MealSheet({ onClose, editId }: Props) {
     setOral(existing.oralMotorTags);
     setBurped(existing.burped);
     setReaction(existing.reaction);
-    // Parse "Ingredients: foo, bar — notes" format stored in the notes field
-    let rawNotes = existing.notes ?? '';
-    let parsedIngredients = '';
-    if (rawNotes.startsWith('Ingredients: ')) {
-      const afterPrefix = rawNotes.slice('Ingredients: '.length);
-      const sepIdx = afterPrefix.indexOf(' — ');
-      if (sepIdx !== -1) {
-        parsedIngredients = afterPrefix.slice(0, sepIdx);
-        rawNotes = afterPrefix.slice(sepIdx + 3);
-      } else {
-        parsedIngredients = afterPrefix;
-        rawNotes = '';
-      }
-    }
-    setIngredients(parsedIngredients);
-    setNotes(rawNotes);
+    setNotes(existing.notes ?? '');
   }, [existing]);
 
+  const dishQuery = foodName.trim().toLowerCase();
+  const dishSuggestions = useMemo(
+    () => (showDishSuggestions && dishQuery
+      ? catalog.filter((c) => c.name.toLowerCase().includes(dishQuery)).slice(0, 5)
+      : []),
+    [catalog, dishQuery, showDishSuggestions],
+  );
+
+  function pickDish(dish: FoodCatalogItem) {
+    setFoodName(dish.name);
+    setCategory(dish.category);
+    setIngredientIds(dish.ingredientIds);
+    setCatalogId(dish.id);
+    setShowDishSuggestions(false);
+  }
+
+  const unit: 'g' | 'ml' =
+    category === 'liquid' || category === 'formula' || category === 'breastmilk' ? 'ml' : 'g';
+
+  async function upsertCatalogItem(name: string): Promise<string> {
+    const now = new Date().toISOString();
+    const fields = { name, category, defaultUnit: unit, ingredientIds, updatedAt: now };
+    // Prefer the dish this meal already links to, else match by name (case-insensitive).
+    const target = (catalogId && catalog.find((c) => c.id === catalogId))
+      || catalog.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (target) {
+      await db.foodCatalog.put({ ...target, ...fields });
+      return target.id;
+    }
+    const rec: FoodCatalogItem = {
+      ...baseFields(), type: 'foodCatalog', ...fields, nutritionSource: 'none',
+    };
+    await db.foodCatalog.add(rec);
+    return rec.id;
+  }
+
   async function save() {
+    const name = foodName.trim() || 'Meal';
+    let itemCatalogId = catalogId;
+    if (saveAsDish && foodName.trim()) {
+      itemCatalogId = await upsertCatalogItem(name);
+    }
     const item: FoodItem = {
-      name: foodName.trim() || 'Meal',
+      name,
       category,
       amountGiven: amountGiven ? Number(amountGiven) : undefined,
       amountConsumed: amountConsumed ? Number(amountConsumed) : undefined,
-      unit: category === 'liquid' || category === 'formula' || category === 'breastmilk' ? 'ml' : 'g',
-      ingredientIds: [],
+      unit,
+      ingredientIds,
+      catalogId: itemCatalogId,
     };
     const fields: Partial<Meal> = {
       timestamp: toISO(when),
       durationMinutes: duration ? Number(duration) : undefined,
       foodItems: [item],
       texture, pacePosition: pace, oralMotorTags: oral, burped, reaction,
-      notes: [ingredients && `Ingredients: ${ingredients}`, notes].filter(Boolean).join(' — ') || undefined,
+      notes: notes || undefined,
       updatedAt: new Date().toISOString(),
     };
     if (editId && existing) {
@@ -96,8 +131,27 @@ export function MealSheet({ onClose, editId }: Props) {
       onDelete={editId ? handleDelete : undefined}
     >
       <Field label="Time"><input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></Field>
-      <Field label="Food"><input type="text" placeholder="e.g. Sweet potato puree" value={foodName} onChange={(e) => setFoodName(e.target.value)} /></Field>
-      <Field label="Ingredients" hint="Comma-separated. Lets you spot a single ingredient across meals later."><input type="text" placeholder="sweet potato, olive oil" value={ingredients} onChange={(e) => setIngredients(e.target.value)} /></Field>
+      <Field label="Food">
+        <input
+          type="text" placeholder="e.g. Sweet potato puree" value={foodName}
+          onChange={(e) => {
+            setFoodName(e.target.value);
+            setCatalogId(undefined); // typed name no longer matches the picked dish
+            setShowDishSuggestions(true);
+          }}
+        />
+        {/* W4 Phase-3 slot: barcode Scan button goes here */}
+        {dishSuggestions.length > 0 && (
+          <div className="choices" style={{ marginTop: 8 }}>
+            {dishSuggestions.map((c) => (
+              <button key={c.id} type="button" className="chip" onClick={() => pickDish(c)}>{c.name}</button>
+            ))}
+          </div>
+        )}
+      </Field>
+      <Field label="Ingredients" hint="Lets you spot a single ingredient across meals later.">
+        <IngredientPicker value={ingredientIds} onChange={setIngredientIds} />
+      </Field>
       <Field label="Category">
         <ChipSelect value={category} allowClear={false} onChange={(v) => v && setCategory(v)} options={[
           { value: 'puree', label: 'Purée' }, { value: 'solid', label: 'Solid' },
@@ -145,6 +199,16 @@ export function MealSheet({ onClose, editId }: Props) {
         ]} />
       </Field>
       <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      <div className="field">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="checkbox" checked={saveAsDish} onChange={(e) => setSaveAsDish(e.target.checked)}
+            style={{ width: 20, height: 20 }}
+          />
+          Remember as dish
+        </label>
+        <div className="hint" style={{ margin: '6px 2px 0' }}>Saves this food + ingredients so next time it autofills from the Food box.</div>
+      </div>
     </Sheet>
   );
 }
