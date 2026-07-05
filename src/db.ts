@@ -38,6 +38,7 @@ export interface FoodItem {
   amountConsumed?: number;
   unit?: 'g' | 'ml';
   ingredientIds: string[];
+  catalogId?: string; // link to FoodCatalogItem for nutrition lookup
 }
 
 export interface Meal extends BaseRecord {
@@ -144,13 +145,51 @@ export interface Ingredient extends BaseRecord {
   tags: string[];
 }
 
+// ---- Nutrition (all values per 100 g / 100 ml) ----
+export interface NutrientProfile {
+  kcal?: number;
+  protein_g?: number;
+  fat_g?: number;
+  carbs_g?: number;
+  fiber_g?: number;
+  iron_mg?: number;
+  calcium_mg?: number;
+  zinc_mg?: number;
+  vitD_ug?: number;
+  vitC_mg?: number;
+  vitA_ug_rae?: number;
+  potassium_mg?: number;
+  sodium_mg?: number;
+  folate_ug?: number;
+  vitB12_ug?: number;
+}
+
 export interface FoodCatalogItem extends BaseRecord {
   type: 'foodCatalog';
   name: string;
   category: FoodCategory;
   defaultUnit?: 'g' | 'ml';
   ingredientIds: string[];
+  brand?: string;
+  upc?: string;              // normalized GTIN digits
+  fdcId?: number;            // USDA FoodData Central id
+  per100?: NutrientProfile;
+  nutritionSource?: 'usda' | 'manual' | 'none';
+  servingGrams?: number;
+  lastFetchedAt?: string;    // ISO, when per100 was fetched from USDA
 }
+
+// Synced singleton (id SETTINGS_ID) — baby profile + analysis config shared across devices.
+export interface AppSettings extends BaseRecord {
+  type: 'settings';
+  dob?: string;                   // YYYY-MM-DD
+  gestWeeksAtBirth?: number;      // e.g. 34
+  gestDaysAtBirth?: number;       // extra days past the week count
+  sex?: 'male' | 'female';
+  associationWindowHours: number; // analysis window, default 2
+}
+
+export const SETTINGS_ID = 'baby';
 
 export type AnyEvent =
   | Meal | MedicationDose | VomitEvent | StoolEvent | GassinessLog
@@ -170,6 +209,7 @@ export class BabyDB extends Dexie {
   factorEvents!: Table<FactorEvent, string>;
   ingredients!: Table<Ingredient, string>;
   foodCatalog!: Table<FoodCatalogItem, string>;
+  settings!: Table<AppSettings, string>;
 
   constructor() {
     super('babyTracker');
@@ -188,8 +228,57 @@ export class BabyDB extends Dexie {
       ingredients: 'id, name, updatedAt, deleted',
       foodCatalog: 'id, name, updatedAt, deleted',
     });
+    this.version(2).stores({
+      foodCatalog: 'id, name, upc, fdcId, updatedAt, deleted',
+      settings: 'id, updatedAt, deleted',
+    }).upgrade(async (tx) => {
+      // v1 stored meal ingredients as "Ingredients: x, y — notes" inside meal.notes.
+      // Parse them into deduped Ingredient records + foodItems[0].ingredientIds.
+      const ingredientsTbl = tx.table('ingredients');
+      const mealsTbl = tx.table('meals');
+      const idByName = new Map<string, string>();
+      for (const ing of await ingredientsTbl.toArray()) idByName.set(ing.name.toLowerCase(), ing.id);
+      const now = new Date().toISOString();
+      const meals = await mealsTbl.toArray();
+      for (const meal of meals) {
+        const notes: string = meal.notes ?? '';
+        if (!notes.startsWith('Ingredients: ')) continue;
+        const after = notes.slice('Ingredients: '.length);
+        const sep = after.indexOf(' — ');
+        const names = (sep === -1 ? after : after.slice(0, sep))
+          .split(',').map((s) => s.trim()).filter(Boolean);
+        const rest = sep === -1 ? '' : after.slice(sep + 3);
+        const ids: string[] = [];
+        for (const name of names) {
+          const key = name.toLowerCase();
+          let ingId = idByName.get(key);
+          if (!ingId) {
+            ingId = newId();
+            idByName.set(key, ingId);
+            await ingredientsTbl.add({
+              id: ingId, createdAt: now, updatedAt: now, deleted: 0, enteredBy: deviceLabel(),
+              type: 'ingredient', name, tags: [],
+            });
+          }
+          ids.push(ingId);
+        }
+        if (meal.foodItems?.[0]) meal.foodItems[0].ingredientIds = ids;
+        meal.notes = rest || undefined;
+        // Bump updatedAt so migrated meals sync; convergent under LWW when both phones migrate.
+        meal.updatedAt = now;
+        await mealsTbl.put(meal);
+      }
+    });
   }
 }
+
+// Tables replicated by the sync engine. Device-local state (deviceLabel, syncUrl,
+// syncToken, syncCursor, lastPushedAt, lastSyncAt) lives in localStorage and never syncs.
+export const SYNC_TABLES = [
+  'meals', 'meds', 'vomits', 'stools', 'gassiness', 'activity', 'sleep',
+  'weights', 'symptoms', 'factors', 'factorEvents', 'ingredients', 'foodCatalog', 'settings',
+] as const;
+export type SyncTable = (typeof SYNC_TABLES)[number];
 
 export const db = new BabyDB();
 
