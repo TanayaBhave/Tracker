@@ -59,10 +59,12 @@ export function GrowthChart() {
   const weights = useLiveQuery(
     () => db.weights.where('deleted').equals(0).sortBy('date'),
     [],
+    [], // default before the query resolves — distinct from "no settings row yet" below
   );
 
-  if (settings === undefined || weights === undefined) return null; // still loading
-
+  // Note: `settings` is `undefined` both while the query is still resolving and when no
+  // settings row exists yet; either way the right thing to show is the same prompt below,
+  // so we don't need a separate "loading" branch.
   if (!settings?.dob || settings.gestWeeksAtBirth === undefined) {
     return (
       <div className="empty">
@@ -166,7 +168,9 @@ export function GrowthChart() {
                   dot={false} isAnimationActive={false}
                 />
               ))}
-              <Scatter data={whoScatter} dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
+              {whoScatter.length > 0 && (
+                <Scatter data={whoScatter} dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
@@ -191,7 +195,9 @@ export function GrowthChart() {
               <Line type="monotone" dataKey="p50" name="P50" stroke={FENTON_LINE_COLOR.p50} strokeWidth={2.5} dot={false} isAnimationActive={false} />
               <Line type="monotone" dataKey="p90" name="P90" stroke={FENTON_LINE_COLOR.p90} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
               <Line type="monotone" dataKey="p97" name="P97" stroke={FENTON_LINE_COLOR.p97} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
-              <Scatter data={fentonScatter} dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
+              {fentonScatter.length > 0 && (
+                <Scatter data={fentonScatter} dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         )}

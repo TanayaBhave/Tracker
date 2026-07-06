@@ -74,7 +74,7 @@ export function BarcodeScanner({ onScan, onClose }: Props) {
           wasmPrepared = true;
           zxing.prepareZXingModule({
             overrides: {
-              locateFile: (path, prefix) => (path.endsWith('.wasm') ? zxingReaderWasmUrl : prefix + path),
+              locateFile: (path: string, prefix: string) => (path.endsWith('.wasm') ? zxingReaderWasmUrl : prefix + path),
             },
           });
         }
@@ -103,10 +103,11 @@ export function BarcodeScanner({ onScan, onClose }: Props) {
 
     void start();
     return () => {
+      // Stopping the tracks releases the camera; that's all teardown needs to do
+      // (the <video> element itself is about to be unmounted along with it).
       stoppedRef.current = true;
       if (intervalId !== undefined) window.clearInterval(intervalId);
       streamRef.current?.getTracks().forEach((t) => t.stop());
-      if (videoRef.current) videoRef.current.srcObject = null;
     };
   }, [onScan]);
 

@@ -148,7 +148,7 @@ export function NutritionDay() {
                       {pieData.map((d) => <Cell key={d.name} fill={d.color} />)}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number, name: string) => [`${Math.round(value)} kcal`, name]}
+                      formatter={(value, name) => `${Math.round(Number(value))} kcal (${name})`}
                       contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', fontSize: 13 }}
                     />
                   </PieChart>

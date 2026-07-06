@@ -6,6 +6,8 @@ import { db } from '../db';
 import { normalizeUsdaFood } from './usdaMap';
 import type { NormalizedUsdaFood } from './usdaMap';
 
+export type { NormalizedUsdaFood };
+
 export interface UsdaSearchHit {
   fdcId: number;
   description: string;
