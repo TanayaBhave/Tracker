@@ -29,13 +29,20 @@ await fastify.register(usdaRoutes);
 
 await fastify.register(fastifyStatic, {
   root: PUBLIC_DIR,
-  index: false, // index.html is served by the SPA-fallback handler below, so we control its headers
+  // Serve index.html for '/' directly (with index:false the plugin 403s directory
+  // requests). setHeaders below already gives index.html its no-cache header.
+  index: 'index.html',
+  // The plugin's built-in Cache-Control would override setHeaders — disable it
+  // so the header logic below is authoritative.
+  cacheControl: false,
   setHeaders(res, filePath) {
     const base = path.basename(filePath);
     if (base === 'index.html' || base === 'sw.js' || base === 'registerSW.js' || base === 'manifest.webmanifest') {
       res.setHeader('Cache-Control', 'no-cache');
     } else if (filePath.split(path.sep).includes('assets')) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=0');
     }
   },
 });
