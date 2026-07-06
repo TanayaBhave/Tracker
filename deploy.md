@@ -32,7 +32,7 @@ $EDITOR .env                # set APP_PORT to a free host port (default 8081);
 
 ```bash
 docker compose up -d --build
-curl http://localhost:8081/api/health     # expect HTTP 200 (use your APP_PORT)
+curl http://localhost:7676/api/health     # expect HTTP 200 (use your APP_PORT)
 docker compose logs -f app                # if anything looks off
 ```
 
@@ -67,14 +67,14 @@ Check it:
 ```bash
 tailscale serve status
 # https://<hostname>.<tailnet-name>.ts.net/
-#   |-- proxy http://localhost:8081
+#   |-- proxy http://localhost:7676
 ```
 
 Your app URL is `https://<hostname>.<tailnet-name>.ts.net` — find the exact
 name with `tailscale status` or in the admin console. Open it in a browser on
 the tailnet and confirm the app loads with a padlock.
 
-To turn it off later: `tailscale serve --https=443 localhost:8081 off`
+To turn it off later: `tailscale serve --https=443 localhost:7676 off`
 (or nuke everything with `tailscale serve reset`).
 
 ## 5. Install on both iPhones
