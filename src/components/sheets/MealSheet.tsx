@@ -7,6 +7,8 @@ import type {
 import { Sheet } from '../Sheet';
 import { Field, ChipSelect, ChipMulti } from '../Fields';
 import { IngredientPicker } from '../IngredientPicker';
+import { BarcodeScanner } from '../BarcodeScanner';
+import { FoodLookupSheet } from '../FoodLookupSheet';
 
 type Props = { onClose: () => void; editId?: string };
 const toISO = (local: string) => new Date(local).toISOString();
@@ -29,6 +31,10 @@ export function MealSheet({ onClose, editId }: Props) {
   const [saveAsDish, setSaveAsDish] = useState(false);
   const [showDishSuggestions, setShowDishSuggestions] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  // W4 Phase-3: barcode scan -> USDA lookup -> autofill Food, chained through the
+  // same pickDish() the existing dish-autocomplete uses below.
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [lookupUpc, setLookupUpc] = useState<string>();
 
   const existing = useLiveQuery(() => editId ? db.meals.get(editId) : undefined, [editId]);
   const catalogRaw = useLiveQuery(() => db.foodCatalog.where('deleted').equals(0).toArray(), []);
@@ -71,6 +77,16 @@ export function MealSheet({ onClose, editId }: Props) {
     setIngredientIds(dish.ingredientIds);
     setCatalogId(dish.id);
     setShowDishSuggestions(false);
+  }
+
+  // W4 Phase-3: FoodLookupSheet already upserted the FoodCatalogItem (with USDA
+  // nutrition data) and hands back its id — fetch it fresh (rather than reading
+  // from the `catalog` live-query snapshot, which may not have re-rendered yet)
+  // and reuse pickDish so this behaves exactly like picking an existing dish.
+  async function handleFoodLookupSelect(newCatalogId: string) {
+    const dish = await db.foodCatalog.get(newCatalogId);
+    if (dish) pickDish(dish);
+    setLookupUpc(undefined);
   }
 
   const unit: 'g' | 'ml' =
@@ -131,6 +147,7 @@ export function MealSheet({ onClose, editId }: Props) {
   }
 
   return (
+    <>
     <Sheet
       title={editId ? 'Edit meal' : 'Add meal'}
       onClose={onClose} onSave={save}
@@ -146,7 +163,9 @@ export function MealSheet({ onClose, editId }: Props) {
             setShowDishSuggestions(true);
           }}
         />
-        {/* W4 Phase-3 slot: barcode Scan button goes here */}
+        <div className="choices" style={{ marginTop: 8 }}>
+          <button type="button" className="chip" onClick={() => setScannerOpen(true)}>📷 Scan UPC</button>
+        </div>
         {dishSuggestions.length > 0 && (
           <div className="choices" style={{ marginTop: 8 }}>
             {dishSuggestions.map((c) => (
@@ -233,5 +252,19 @@ export function MealSheet({ onClose, editId }: Props) {
         <div className="hint" style={{ margin: '6px 2px 0' }}>Saves this food + ingredients so next time it autofills from the Food box.</div>
       </div>
     </Sheet>
+    {scannerOpen && (
+      <BarcodeScanner
+        onScan={(upc) => { setScannerOpen(false); setLookupUpc(upc); }}
+        onClose={() => setScannerOpen(false)}
+      />
+    )}
+    {lookupUpc !== undefined && (
+      <FoodLookupSheet
+        upc={lookupUpc}
+        onSelect={(newCatalogId) => { void handleFoodLookupSelect(newCatalogId); }}
+        onClose={() => setLookupUpc(undefined)}
+      />
+    )}
+    </>
   );
 }
