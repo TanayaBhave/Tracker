@@ -6,8 +6,26 @@ import { db, baseFields } from '../db';
 import type { FoodCatalogItem } from '../db';
 import { searchUSDA, getUsdaFood, lookupByUpc } from '../nutrition/usdaClient';
 import type { UsdaSearchHit, NormalizedUsdaFood } from '../nutrition/usdaClient';
+import { cleanProductName } from '../nutrition/productName';
 
 type Props = { upc?: string; onSelect: (catalogId: string) => void; onClose: () => void };
+
+/** Find-or-create an Ingredient record for a scanned/searched product so the
+ *  ingredient-level vomit-correlation engine (and recipes' ingredientIds
+ *  union) can see it — a catalog item with per100 but no Ingredient link is
+ *  invisible to both. Case-insensitive name match against db.ingredients;
+ *  the name is cleaned first (see productName.ts) so "365 ORGANIC TAHINI
+ *  16OZ" and a re-scan of the same jar converge on one "Organic Tahini". */
+async function findOrCreateIngredient(rawName: string, brand?: string): Promise<string> {
+  const name = cleanProductName(rawName, brand);
+  const lower = name.toLowerCase();
+  const existing = (await db.ingredients.where('deleted').equals(0).toArray())
+    .find((i) => i.name.toLowerCase() === lower);
+  if (existing) return existing.id;
+  const rec = { ...baseFields(), type: 'ingredient' as const, name, tags: [] as string[] };
+  await db.ingredients.add(rec);
+  return rec.id;
+}
 
 /** Upserts a FoodCatalogItem from a normalized USDA food, reusing an existing
  *  catalog entry with the same fdcId/upc (so re-scanning the same product
@@ -18,6 +36,12 @@ async function upsertCatalogFromUsda(food: NormalizedUsdaFood): Promise<string> 
     ? await db.foodCatalog.where('fdcId').equals(food.fdcId).first()
     : (food.upc ? await db.foodCatalog.where('upc').equals(food.upc).first() : undefined);
 
+  // Applies to scanned AND name-searched products (both paths land here):
+  // if the item isn't linked to any Ingredient yet, link it to one now.
+  const ingredientIds = existing && existing.ingredientIds.length > 0
+    ? existing.ingredientIds
+    : [await findOrCreateIngredient(food.name, food.brand)];
+
   const fields = {
     name: food.name,
     brand: food.brand,
@@ -27,6 +51,7 @@ async function upsertCatalogFromUsda(food: NormalizedUsdaFood): Promise<string> 
     servingGrams: food.servingGrams,
     nutritionSource: 'usda' as const,
     lastFetchedAt: now,
+    ingredientIds,
     updatedAt: now,
   };
 
@@ -39,7 +64,6 @@ async function upsertCatalogFromUsda(food: NormalizedUsdaFood): Promise<string> 
     type: 'foodCatalog',
     category: 'other',
     defaultUnit: 'g',
-    ingredientIds: [],
     ...fields,
   };
   await db.foodCatalog.add(rec);
