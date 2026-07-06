@@ -60,6 +60,7 @@ export interface MedicationDose extends BaseRecord {
   medName: string;
   doseAmount?: number;
   doseUnit?: string;
+  catalogId?: string; // link to MedCatalogItem (unindexed payload field)
   notes?: string;
 }
 
@@ -184,6 +185,22 @@ export interface FoodCatalogItem extends BaseRecord {
   recipeComponents?: { catalogId: string; grams: number }[];
 }
 
+// Medication/supplement catalog: remembered meds so daily logging is one tap,
+// plus (for supplements) the nutrients delivered by ONE default dose — NOT
+// per-100g like FoodCatalogItem.per100. computeDailyIntake() folds perDose
+// into the day's totals for doses that link here via MedicationDose.catalogId.
+export interface MedCatalogItem extends BaseRecord {
+  type: 'medCatalog';
+  name: string;
+  kind: 'medication' | 'supplement';
+  brand?: string;
+  upc?: string;               // normalized GTIN digits (supplement bottle barcode)
+  defaultDoseAmount?: number; // e.g. 5
+  defaultDoseUnit?: string;   // e.g. 'drops', 'ml'
+  perDose?: NutrientProfile;  // nutrients per ONE default dose
+  archived: number;           // 0 | 1
+}
+
 // Synced singleton (id SETTINGS_ID) — baby profile + analysis config shared across devices.
 export interface AppSettings extends BaseRecord {
   type: 'settings';
@@ -215,6 +232,7 @@ export class BabyDB extends Dexie {
   ingredients!: Table<Ingredient, string>;
   foodCatalog!: Table<FoodCatalogItem, string>;
   settings!: Table<AppSettings, string>;
+  medCatalog!: Table<MedCatalogItem, string>;
 
   constructor() {
     super('babyTracker');
@@ -274,6 +292,11 @@ export class BabyDB extends Dexie {
         await mealsTbl.put(meal);
       }
     });
+    // v3 adds ONLY the medication/supplement catalog table — no data to
+    // migrate, so no upgrade callback is needed.
+    this.version(3).stores({
+      medCatalog: 'id, name, upc, updatedAt, deleted',
+    });
   }
 }
 
@@ -282,6 +305,7 @@ export class BabyDB extends Dexie {
 export const SYNC_TABLES = [
   'meals', 'meds', 'vomits', 'stools', 'gassiness', 'activity', 'sleep',
   'weights', 'symptoms', 'factors', 'factorEvents', 'ingredients', 'foodCatalog', 'settings',
+  'medCatalog',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 

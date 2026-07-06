@@ -36,6 +36,9 @@ export function MealSheet({ onClose, editId }: Props) {
   // same pickDish() the existing dish-autocomplete uses below.
   const [scannerOpen, setScannerOpen] = useState(false);
   const [lookupUpc, setLookupUpc] = useState<string>();
+  // Name-search lookup (no camera) for barcode-less ingredients — fresh
+  // produce, bulk goods. Same FoodLookupSheet, opened straight in search mode.
+  const [lookupOpen, setLookupOpen] = useState(false);
   // Recipe/composite-dish feature: "Build recipe" opens RecipeBuilderSheet;
   // its onSave hands back a catalog id that's routed through the same
   // pickDish() path as a scanned/searched product below.
@@ -94,6 +97,7 @@ export function MealSheet({ onClose, editId }: Props) {
     const dish = await db.foodCatalog.get(newCatalogId);
     if (dish) pickDish(dish);
     setLookupUpc(undefined);
+    setLookupOpen(false);
   }
 
   // Recipe builder hands back the (new or re-saved) catalog id; re-fetch so an
@@ -179,6 +183,7 @@ export function MealSheet({ onClose, editId }: Props) {
         />
         <div className="choices" style={{ marginTop: 8 }}>
           <button type="button" className="chip" onClick={() => setScannerOpen(true)}>📷 Scan UPC</button>
+          <button type="button" className="chip" onClick={() => setLookupOpen(true)}>🔍 Look up</button>
           <button type="button" className="chip" onClick={() => setRecipeBuilderOpen(true)}>
             {isRecipe ? '🧪 Edit recipe' : '🧪 Build recipe'}
           </button>
@@ -280,6 +285,12 @@ export function MealSheet({ onClose, editId }: Props) {
         upc={lookupUpc}
         onSelect={(newCatalogId) => { void handleFoodLookupSelect(newCatalogId); }}
         onClose={() => setLookupUpc(undefined)}
+      />
+    )}
+    {lookupOpen && (
+      <FoodLookupSheet
+        onSelect={(newCatalogId) => { void handleFoodLookupSelect(newCatalogId); }}
+        onClose={() => setLookupOpen(false)}
       />
     )}
     {recipeBuilderOpen && (

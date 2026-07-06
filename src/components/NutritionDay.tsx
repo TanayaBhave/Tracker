@@ -123,6 +123,8 @@ export function NutritionDay() {
         </div>
         <div style={{ color: 'var(--ink-soft)', fontSize: 13, marginTop: 2 }}>
           {dri ? `${dri.label} bracket · ` : ''}{intake.coverage}
+          {intake.supplementDoses > 0
+            && ` · incl. ${intake.supplementDoses} supplement dose${intake.supplementDoses === 1 ? '' : 's'}`}
         </div>
       </div>
 
