@@ -9,6 +9,7 @@ import { Field, ChipSelect, ChipMulti } from '../Fields';
 import { IngredientPicker } from '../IngredientPicker';
 import { BarcodeScanner } from '../BarcodeScanner';
 import { FoodLookupSheet } from '../FoodLookupSheet';
+import { RecipeBuilderSheet } from '../RecipeBuilderSheet';
 
 type Props = { onClose: () => void; editId?: string };
 const toISO = (local: string) => new Date(local).toISOString();
@@ -35,10 +36,16 @@ export function MealSheet({ onClose, editId }: Props) {
   // same pickDish() the existing dish-autocomplete uses below.
   const [scannerOpen, setScannerOpen] = useState(false);
   const [lookupUpc, setLookupUpc] = useState<string>();
+  // Recipe/composite-dish feature: "Build recipe" opens RecipeBuilderSheet;
+  // its onSave hands back a catalog id that's routed through the same
+  // pickDish() path as a scanned/searched product below.
+  const [recipeBuilderOpen, setRecipeBuilderOpen] = useState(false);
 
   const existing = useLiveQuery(() => editId ? db.meals.get(editId) : undefined, [editId]);
   const catalogRaw = useLiveQuery(() => db.foodCatalog.where('deleted').equals(0).toArray(), []);
   const catalog = useMemo(() => catalogRaw ?? [], [catalogRaw]);
+  const pickedDish = useMemo(() => catalog.find((c) => c.id === catalogId), [catalog, catalogId]);
+  const isRecipe = !!pickedDish?.recipeComponents?.length;
 
   useEffect(() => {
     if (!existing) return;
@@ -87,6 +94,13 @@ export function MealSheet({ onClose, editId }: Props) {
     const dish = await db.foodCatalog.get(newCatalogId);
     if (dish) pickDish(dish);
     setLookupUpc(undefined);
+  }
+
+  // Recipe builder hands back the (new or re-saved) catalog id; re-fetch so an
+  // edited recipe's refreshed blended per100/ingredients land in the form.
+  async function handleRecipeSave(newCatalogId: string) {
+    const dish = await db.foodCatalog.get(newCatalogId);
+    if (dish) pickDish(dish);
   }
 
   const unit: 'g' | 'ml' =
@@ -165,6 +179,9 @@ export function MealSheet({ onClose, editId }: Props) {
         />
         <div className="choices" style={{ marginTop: 8 }}>
           <button type="button" className="chip" onClick={() => setScannerOpen(true)}>📷 Scan UPC</button>
+          <button type="button" className="chip" onClick={() => setRecipeBuilderOpen(true)}>
+            {isRecipe ? '🧪 Edit recipe' : '🧪 Build recipe'}
+          </button>
         </div>
         {dishSuggestions.length > 0 && (
           <div className="choices" style={{ marginTop: 8 }}>
@@ -263,6 +280,13 @@ export function MealSheet({ onClose, editId }: Props) {
         upc={lookupUpc}
         onSelect={(newCatalogId) => { void handleFoodLookupSelect(newCatalogId); }}
         onClose={() => setLookupUpc(undefined)}
+      />
+    )}
+    {recipeBuilderOpen && (
+      <RecipeBuilderSheet
+        editCatalogId={isRecipe ? catalogId : undefined}
+        onSave={(newCatalogId) => { void handleRecipeSave(newCatalogId); }}
+        onClose={() => setRecipeBuilderOpen(false)}
       />
     )}
     </>

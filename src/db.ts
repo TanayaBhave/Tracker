@@ -174,9 +174,14 @@ export interface FoodCatalogItem extends BaseRecord {
   upc?: string;              // normalized GTIN digits
   fdcId?: number;            // USDA FoodData Central id
   per100?: NutrientProfile;
-  nutritionSource?: 'usda' | 'manual' | 'none';
+  nutritionSource?: 'usda' | 'manual' | 'none' | 'recipe';
   servingGrams?: number;
   lastFetchedAt?: string;    // ISO, when per100 was fetched from USDA
+  // Recipe / composite-dish feature (Phase 3): when set, this catalog item's
+  // per100 was computed by blending these components' per100 profiles
+  // (see src/nutrition/blend.ts), weighted by grams. Unindexed payload — no
+  // Dexie schema change needed, it syncs like any other foodCatalog field.
+  recipeComponents?: { catalogId: string; grams: number }[];
 }
 
 // Synced singleton (id SETTINGS_ID) — baby profile + analysis config shared across devices.
