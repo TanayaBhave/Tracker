@@ -1,8 +1,9 @@
-import { test, expect } from 'playwright/test';
-import { correctedAgeMonths, postmenstrualAgeWeeks } from '../src/growth/age';
+import { test, expect, type Page } from 'playwright/test';
+import { correctedAgeMonths, postmenstrualAgeWeeks, chronologicalAgeMonths } from '../src/growth/age';
 import { zFromValue, valueFromZ, percentileFromZ } from '../src/growth/lms';
 import { whoWfaBoysAt } from '../src/growth/whoWfaBoys';
 import { fentonBoys } from '../src/growth/fentonBoys';
+import { driBracketFor } from '../src/nutrition/dri';
 
 // Pure-function unit tests for the growth math (no browser needed) — run with
 // `npx playwright test tests/growth.spec.ts`.
@@ -44,6 +45,64 @@ test.describe('correctedAgeMonths / postmenstrualAgeWeeks', () => {
   test('postmenstrualAgeWeeks a plausible value 6 weeks after a 34w0d birth', () => {
     const pma = postmenstrualAgeWeeks('2025-07-06', 34, 0, '2025-08-17'); // +42 days = 6 weeks
     expect(pma).toBeCloseTo(40, 6); // 34 + 6 = 40 weeks PMA
+  });
+});
+
+test.describe('chronologicalAgeMonths', () => {
+  test('dob 2025-06-05 -> 2026-07-05 is about 13.0 months', () => {
+    const months = chronologicalAgeMonths('2025-06-05', '2026-07-05');
+    expect(months).toBeGreaterThan(12.8);
+    expect(months).toBeLessThan(13.2);
+  });
+
+  test('matches daysBetween / DAYS_PER_MONTH directly — no preterm adjustment applied', () => {
+    const months = chronologicalAgeMonths('2025-01-01', '2025-07-01');
+    const days = (new Date('2025-07-01T00:00:00Z').getTime() - new Date('2025-01-01T00:00:00Z').getTime()) / 86_400_000;
+    expect(months).toBeCloseTo(days / (365.25 / 12), 6);
+  });
+
+  test('for a preterm baby, chronological age is always older than corrected age', () => {
+    // Same dob/onDate as correctedAgeMonths' "roadmap scenario" test above
+    // (34w0d gestation): corrected age subtracts the prematurity, so
+    // chronological must come out higher for any preterm baby.
+    const dob = '2025-01-01';
+    const onDate = new Date(new Date('2025-01-01T00:00:00Z').getTime() + 13 * 30.4375 * 86_400_000)
+      .toISOString().slice(0, 10);
+    const chrono = chronologicalAgeMonths(dob, onDate);
+    const corrected = correctedAgeMonths(dob, 34, 0, onDate);
+    expect(chrono).toBeGreaterThan(corrected);
+    expect(chrono).toBeCloseTo(13, 1);
+  });
+
+  test('defaults onDate to today when omitted', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    expect(chronologicalAgeMonths('2020-01-01')).toBeCloseTo(chronologicalAgeMonths('2020-01-01', today), 6);
+  });
+});
+
+test.describe('DRI bracket selection uses chronological age only (not corrected)', () => {
+  test('a 13mo-chronological / 34w0d-preterm baby selects the "1-3 years" bracket', () => {
+    // Same roadmap scenario used throughout this file: 34w0d gestation, ~13mo
+    // chronological -> ~11.5mo corrected. Under the old corrected-age rule this
+    // would select "infant7_12" (< 12mo); the nutritionist tracks chronological
+    // age, so the DRI bracket must flip to "child1_3" instead.
+    const dob = '2025-01-01';
+    const onDate = new Date(new Date('2025-01-01T00:00:00Z').getTime() + 13 * 30.4375 * 86_400_000)
+      .toISOString().slice(0, 10);
+
+    const chronoMonths = chronologicalAgeMonths(dob, onDate);
+    expect(driBracketFor(chronoMonths)).toBe('child1_3');
+
+    // Sanity check that this is a genuine corrected-vs-chronological flip: the
+    // corrected age for the same baby/date is still under 12 months.
+    const correctedMonths = correctedAgeMonths(dob, 34, 0, onDate);
+    expect(correctedMonths).toBeLessThan(12);
+    expect(driBracketFor(correctedMonths)).toBe('infant7_12');
+  });
+
+  test('a term newborn under 12mo chronological still selects "infant7_12"', () => {
+    const months = chronologicalAgeMonths('2025-01-01', '2025-10-01'); // ~9 months
+    expect(driBracketFor(months)).toBe('infant7_12');
   });
 });
 
@@ -126,5 +185,72 @@ test.describe('Fenton preterm table', () => {
     const term = fentonBoys.find((r) => r.pmaWeeks === 40)!;
     expect(term.p50).toBeGreaterThan(3.0);
     expect(term.p50).toBeLessThan(4.0);
+  });
+});
+
+// UI acceptance test for the chronological-age tab (Phase 3.5). Follows the
+// serial single-page pattern from tests/smoke.spec.ts — everything below
+// shares one seeded browser session so profile/weight setup happens once.
+// (Scoped to this describe block only — mode 'serial' is set inside it so
+// it doesn't affect the pure-function tests above.)
+test.describe('GrowthChart chronological-age tab (UI)', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test('seed baby profile (34w0d preterm, ~13mo chronological) and log a weight', async () => {
+    await page.goto('/');
+
+    // dob = ~13 calendar months before "today" -> chronological age lands
+    // around 13mo, same roadmap scenario used throughout this file (~11.5mo
+    // corrected at 34w0d gestation).
+    const now = new Date();
+    const dob = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 13, now.getUTCDate()))
+      .toISOString().slice(0, 10);
+
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.locator('.field', { hasText: 'Date of birth' }).locator('input').fill(dob);
+    await page.locator('.field', { hasText: 'Gestation (weeks)' }).locator('input').fill('34');
+
+    await page.getByRole('button', { name: 'Today' }).click();
+    await page.getByRole('button', { name: 'Weight' }).click();
+    const sheet = page.locator('.sheet');
+    await expect(sheet).toBeVisible();
+    await sheet.locator('input[type="number"]').fill('9.2');
+    await sheet.locator('.btn.save').click();
+    await expect(sheet).toBeHidden();
+  });
+
+  test('Growth tab defaults to the "WHO (corrected)" view', async () => {
+    await page.getByRole('button', { name: 'Insights' }).click();
+    await page.getByRole('button', { name: 'Growth' }).click();
+
+    const correctedChip = page.getByRole('button', { name: 'WHO (corrected)' });
+    const chronoChip = page.getByRole('button', { name: 'WHO (chronological)' });
+    await expect(correctedChip).toBeVisible();
+    await expect(chronoChip).toBeVisible();
+    await expect(correctedChip).toHaveClass(/\bon\b/);
+    await expect(chronoChip).not.toHaveClass(/\bon\b/);
+    await expect(page.locator('.entry .title')).toContainText('mo corrected');
+  });
+
+  test('clicking "WHO (chronological)" switches the header stat and shows the preterm hint', async () => {
+    const chronoChip = page.getByRole('button', { name: 'WHO (chronological)' });
+    await chronoChip.click();
+
+    await expect(chronoChip).toHaveClass(/\bon\b/);
+    await expect(page.getByRole('button', { name: 'WHO (corrected)' })).not.toHaveClass(/\bon\b/);
+    await expect(page.locator('.entry .title')).toContainText('mo chronological');
+    await expect(
+      page.locator('.hint', { hasText: 'chronological age than against corrected age' }),
+    ).toBeVisible();
   });
 });

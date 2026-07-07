@@ -1,8 +1,10 @@
-// Corrected-age helpers for a baby born preterm.
+// Age helpers for a baby born preterm.
 //
 // Cross-workstream contract (Phase 3, docs/ROADMAP.md): W5 (this file) owns
-// correctedAgeMonths(); W4 (nutrition) imports it to select DRI brackets and
-// for other age-dependent logic. Keep the signature stable.
+// correctedAgeMonths() and chronologicalAgeMonths(); W4 (nutrition) imports
+// chronologicalAgeMonths() to select DRI brackets (the nutritionist tracks
+// this baby by chronological, not corrected, age) and for other age-dependent
+// logic. Keep the signatures stable.
 
 const DAYS_PER_MONTH = 365.25 / 12; // 30.4375 — average Gregorian month
 const TERM_GESTATION_DAYS = 280; // standard 40-week term pregnancy, LMP-based
@@ -35,6 +37,17 @@ export function correctedAgeMonths(
   const prematureByDays = TERM_GESTATION_DAYS - gestationAtBirthDays;
   const correctedDays = chronologicalDays - prematureByDays;
   return correctedDays / DAYS_PER_MONTH;
+}
+
+/**
+ * Chronological age, in months, as of `onDate` (defaults to today) — the
+ * baby's actual time-since-birth, with no preterm adjustment. Used where the
+ * "corrected age" convention doesn't apply, e.g. the nutritionist's DRI
+ * bracket, which tracks chronological age only.
+ */
+export function chronologicalAgeMonths(dob: string, onDate?: string): number {
+  const today = onDate ?? new Date().toISOString().slice(0, 10);
+  return daysBetween(dob, today) / DAYS_PER_MONTH;
 }
 
 /**
