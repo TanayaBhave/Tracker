@@ -79,6 +79,31 @@ test.describe('blendPer100', () => {
     expect(result.totalGrams).toBe(100);
     expect(result.per100.kcal).toBeCloseTo(200, 6);
   });
+
+  // Phase 3.6: sugar_g/addedSugar_g were added to NutrientProfile and
+  // NUTRIENT_KEYS (now centralized in src/db.ts and imported here, rather than
+  // duplicated) — this is a regression guard that the blend loop actually
+  // picks up both new keys like any other nutrient, weighted the same way.
+  test('sugar_g and addedSugar_g blend the same as any other nutrient key', () => {
+    const result = blendPer100([
+      { per100: { sugar_g: 20, addedSugar_g: 10 }, grams: 50 },
+      { per100: { sugar_g: 4, addedSugar_g: 0 }, grams: 50 },
+    ]);
+    // sugar_g: (20*50/100 + 4*50/100) / 100 * 100 = 10 + 2 = 12.
+    expect(result.per100.sugar_g).toBeCloseTo(12, 6);
+    // addedSugar_g: (10*50/100 + 0*50/100) / 100 * 100 = 5 + 0 = 5.
+    expect(result.per100.addedSugar_g).toBeCloseTo(5, 6);
+  });
+
+  test('a component missing sugar keys dilutes them toward zero, like any other nutrient', () => {
+    const result = blendPer100([
+      { per100: { sugar_g: 30 }, grams: 100 },
+      { per100: { kcal: 50 }, grams: 100 }, // no sugar_g at all
+    ]);
+    // (30*100/100 + 0*100/100) / 200 * 100 = 15.
+    expect(result.per100.sugar_g).toBeCloseTo(15, 6);
+    expect(result.per100.addedSugar_g).toBeCloseTo(0, 6); // neither component has it -> 0, not undefined
+  });
 });
 
 test.describe('unionIngredientIds', () => {
