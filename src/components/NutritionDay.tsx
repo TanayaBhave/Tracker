@@ -31,6 +31,15 @@ const MICRO_ROWS: { key: keyof NutrientProfile; label: string; unit: string; dec
   { key: 'vitB12_ug', label: 'Vitamin B12', unit: 'µg', decimals: 1 },
 ];
 
+// Sugar rows (Phase 3.6) are rendered separately from MICRO_ROWS above: there
+// is no DRI for either sugar_g or addedSugar_g (see src/nutrition/dri.ts), so
+// these always pass target={undefined} into MicroRow, taking its existing
+// no-target path (raw amount only, no %DRI bar) rather than inventing one.
+const SUGAR_ROWS: { key: keyof NutrientProfile; label: string; unit: string; decimals: number }[] = [
+  { key: 'sugar_g', label: 'Sugar (total)', unit: 'g', decimals: 1 },
+  { key: 'addedSugar_g', label: 'Added sugar', unit: 'g', decimals: 1 },
+];
+
 // %DRI meter: fill capped at 150% of target, with a tick at the 100% mark and
 // an overflow label past the cap. Raw amount + target + percent are always
 // shown as text, never encoded only in bar length.
@@ -190,6 +199,21 @@ export function NutritionDay() {
               target={dri?.targets[row.key]}
             />
           ))}
+
+          <div className="section-label">Sugar</div>
+          {SUGAR_ROWS.map((row) => (
+            <MicroRow
+              key={row.key}
+              label={row.label}
+              unit={row.unit}
+              decimals={row.decimals}
+              amount={intake[row.key] ?? 0}
+              target={dri?.targets[row.key]}
+            />
+          ))}
+          <div className="hint" style={{ margin: '-6px 2px 0' }}>
+            AAP recommends no added sugar before age 2 — descriptive, not diagnostic.
+          </div>
         </>
       )}
 

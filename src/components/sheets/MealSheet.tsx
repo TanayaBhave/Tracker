@@ -208,8 +208,8 @@ export function MealSheet({ onClose, editId }: Props) {
         ]} />
       </Field>
       <div style={{ display: 'flex', gap: 10 }}>
-        <Field label="Given"><input type="number" inputMode="decimal" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value)} /></Field>
-        <Field label="Eaten"><input type="number" inputMode="decimal" value={amountConsumed} onChange={(e) => setAmountConsumed(e.target.value)} /></Field>
+        <Field label={`Given (${unit === 'ml' ? 'mL' : 'g'})`}><input type="number" inputMode="decimal" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value)} /></Field>
+        <Field label={`Eaten (${unit === 'ml' ? 'mL' : 'g'})`}><input type="number" inputMode="decimal" value={amountConsumed} onChange={(e) => setAmountConsumed(e.target.value)} /></Field>
         <Field label="Mins"><input type="number" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)} /></Field>
       </div>
 

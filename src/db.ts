@@ -163,7 +163,19 @@ export interface NutrientProfile {
   sodium_mg?: number;
   folate_ug?: number;
   vitB12_ug?: number;
+  sugar_g?: number;      // Total sugars — USDA nutrient 2000 (fallback 1063). See usdaMap.ts.
+  addedSugar_g?: number; // Added sugars — USDA nutrient 1235, Branded foods only.
 }
+
+// Single source of truth for "every nutrient key" iteration (blend.ts,
+// intake.ts, and anywhere else that sums/copies a NutrientProfile by key).
+// Phase 3.6: centralized here so a future nutrient can't silently miss a
+// consumer by only being added to one of several previously-duplicated lists.
+export const NUTRIENT_KEYS: (keyof NutrientProfile)[] = [
+  'kcal', 'protein_g', 'fat_g', 'carbs_g', 'fiber_g', 'iron_mg', 'calcium_mg',
+  'zinc_mg', 'vitD_ug', 'vitC_mg', 'vitA_ug_rae', 'potassium_mg', 'sodium_mg',
+  'folate_ug', 'vitB12_ug', 'sugar_g', 'addedSugar_g',
+];
 
 export interface FoodCatalogItem extends BaseRecord {
   type: 'foodCatalog';
@@ -182,7 +194,10 @@ export interface FoodCatalogItem extends BaseRecord {
   // per100 was computed by blending these components' per100 profiles
   // (see src/nutrition/blend.ts), weighted by grams. Unindexed payload — no
   // Dexie schema change needed, it syncs like any other foodCatalog field.
-  recipeComponents?: { catalogId: string; grams: number }[];
+  // `unit` (Phase 3.6) is display-only: math always treats 1 mL = 1 g
+  // (density ≈1 at baby-food scale), so blend.ts never reads it. Old records
+  // saved before Phase 3.6 lack it; callers default to 'g'.
+  recipeComponents?: { catalogId: string; grams: number; unit?: 'g' | 'ml' }[];
 }
 
 // Medication/supplement catalog: remembered meds so daily logging is one tap,

@@ -1,5 +1,5 @@
 // Daily nutrition totals for the Nutrition tab (NutritionDay.tsx).
-import { db, isoToLocal } from '../db';
+import { db, isoToLocal, NUTRIENT_KEYS } from '../db';
 import type { NutrientProfile } from '../db';
 
 export type DailyIntake = NutrientProfile & {
@@ -10,12 +10,6 @@ export type DailyIntake = NutrientProfile & {
   /** Medication doses whose linked catalog item contributed perDose nutrients. */
   supplementDoses: number;
 };
-
-const NUTRIENT_KEYS: (keyof NutrientProfile)[] = [
-  'kcal', 'protein_g', 'fat_g', 'carbs_g', 'fiber_g', 'iron_mg', 'calcium_mg',
-  'zinc_mg', 'vitD_ug', 'vitC_mg', 'vitA_ug_rae', 'potassium_mg', 'sodium_mg',
-  'folate_ug', 'vitB12_ug',
-];
 
 /** How many "default doses" a logged medication dose represents, for scaling
  *  the catalog item's perDose nutrients.

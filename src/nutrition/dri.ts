@@ -82,6 +82,11 @@ const child1_3: NutrientProfile = {
   vitB12_ug: 0.9, // RDA — https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/
 };
 
+// Deliberate omission (Phase 3.6): neither bracket sets sugar_g nor
+// addedSugar_g. No DRI/RDA exists for sugar at any age — AAP guidance ("avoid
+// added sugar before age 2") is qualitative, not a gram target — so
+// NutritionDay renders those two rows via its existing undefined-target path
+// (raw grams, no %DRI bar) instead of inventing a denominator here.
 export const DRI_TARGETS: Record<DriBracket, NutrientProfile> = { infant7_12, child1_3 };
 
 /** Selects the infant/child DRI bracket from chronological age. Only two

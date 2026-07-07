@@ -40,6 +40,8 @@ const NUTRIENT_FIELDS: { key: keyof NutrientProfile; label: string }[] = [
   { key: 'sodium_mg', label: 'Sodium (mg)' },
   { key: 'folate_ug', label: 'Folate (µg)' },
   { key: 'vitB12_ug', label: 'Vitamin B12 (µg)' },
+  { key: 'sugar_g', label: 'Total sugar (g)' },
+  { key: 'addedSugar_g', label: 'Added sugar (g)' },
 ];
 
 type Basis = 'serving' | '100g';
