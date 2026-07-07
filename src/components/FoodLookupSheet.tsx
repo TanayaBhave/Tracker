@@ -7,6 +7,7 @@ import type { FoodCatalogItem } from '../db';
 import { searchUSDA, getUsdaFood, lookupByUpc } from '../nutrition/usdaClient';
 import type { UsdaSearchHit, NormalizedUsdaFood } from '../nutrition/usdaClient';
 import { cleanProductName } from '../nutrition/productName';
+import { ManualNutritionSheet } from './ManualNutritionSheet';
 
 type Props = { upc?: string; onSelect: (catalogId: string) => void; onClose: () => void };
 
@@ -16,7 +17,7 @@ type Props = { upc?: string; onSelect: (catalogId: string) => void; onClose: () 
  *  invisible to both. Case-insensitive name match against db.ingredients;
  *  the name is cleaned first (see productName.ts) so "365 ORGANIC TAHINI
  *  16OZ" and a re-scan of the same jar converge on one "Organic Tahini". */
-async function findOrCreateIngredient(rawName: string, brand?: string): Promise<string> {
+export async function findOrCreateIngredient(rawName: string, brand?: string): Promise<string> {
   const name = cleanProductName(rawName, brand);
   const lower = name.toLowerCase();
   const existing = (await db.ingredients.where('deleted').equals(0).toArray())
@@ -77,6 +78,9 @@ export function FoodLookupSheet({ upc, onSelect, onClose }: Props) {
     upc ? 'resolving-upc' : 'idle',
   );
   const [errorMsg, setErrorMsg] = useState<string>();
+  // Phase 3.5 fallback: type the nutrition facts off the physical label when
+  // USDA has no match (see ManualNutritionSheet.tsx).
+  const [manualOpen, setManualOpen] = useState(false);
   const autoTriedRef = useRef(false);
 
   // Fast path: a scanned UPC tries to resolve straight to a catalog item
@@ -131,6 +135,7 @@ export function FoodLookupSheet({ upc, onSelect, onClose }: Props) {
   }
 
   return (
+    <>
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="grip" />
@@ -144,9 +149,16 @@ export function FoodLookupSheet({ upc, onSelect, onClose }: Props) {
             <div className="empty">Looking up UPC {upc}…</div>
           )}
           {status === 'upc-not-found' && (
-            <div className="hint" style={{ margin: '0 2px 14px' }}>
-              No USDA match for UPC {upc}. Try searching by name below.
-            </div>
+            <>
+              <div className="hint" style={{ margin: '0 2px 14px' }}>
+                No USDA match for UPC {upc}. Try searching by name below, or enter the nutrition facts straight off the label.
+              </div>
+              <div className="sheet-actions" style={{ marginBottom: 14 }}>
+                <button type="button" className="btn save" onClick={() => setManualOpen(true)}>
+                  Enter nutrition from the label
+                </button>
+              </div>
+            </>
           )}
           {status !== 'resolving-upc' && (
             <>
@@ -165,6 +177,16 @@ export function FoodLookupSheet({ upc, onSelect, onClose }: Props) {
                   {status === 'searching' ? 'Searching…' : 'Search'}
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => setManualOpen(true)}
+                style={{
+                  display: 'block', margin: '10px auto 0', background: 'none', border: 'none',
+                  color: 'var(--accent)', fontSize: 13, fontWeight: 600, textDecoration: 'underline',
+                }}
+              >
+                Can't find it? Enter from the label
+              </button>
 
               {status === 'error' && errorMsg && (
                 <div className="warn-banner" style={{ marginTop: 14 }}>{errorMsg}</div>
@@ -195,5 +217,14 @@ export function FoodLookupSheet({ upc, onSelect, onClose }: Props) {
         </div>
       </div>
     </div>
+    {manualOpen && (
+      <ManualNutritionSheet
+        upc={upc}
+        initialName={query.trim() || undefined}
+        onSelect={(id) => { setManualOpen(false); onSelect(id); }}
+        onClose={() => setManualOpen(false)}
+      />
+    )}
+    </>
   );
 }
