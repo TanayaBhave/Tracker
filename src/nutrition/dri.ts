@@ -6,10 +6,17 @@
 // model memory. See the per-row source URL comments.
 //
 // Cross-workstream contract (docs/ROADMAP.md Phase 3): W5 owns
-// src/growth/age.ts and exports correctedAgeMonths(dob, gestWeeks, gestDays,
-// onDate?) — imported here to pick the infant vs. child bracket.
+// src/growth/age.ts and exports chronologicalAgeMonths(dob, onDate?) —
+// imported here to pick the infant vs. child bracket.
+//
+// Deliberate product decision (Phase 3.5): the DRI bracket is keyed off
+// chronological age ONLY, never corrected age. This baby's nutritionist
+// tracks nutrition targets by chronological age (e.g. 13mo chronological ->
+// "1-3 years" bracket), even though the growth chart's default view uses
+// corrected age. Do not swap this back to corrected age without checking
+// with the nutritionist's guidance first.
 import type { NutrientProfile } from '../db';
-import { correctedAgeMonths } from '../growth/age';
+import { chronologicalAgeMonths } from '../growth/age';
 
 export type DriBracket = 'infant7_12' | 'child1_3';
 
@@ -77,24 +84,23 @@ const child1_3: NutrientProfile = {
 
 export const DRI_TARGETS: Record<DriBracket, NutrientProfile> = { infant7_12, child1_3 };
 
-/** Selects the infant/child DRI bracket from corrected age. Only two brackets
- *  are modeled (matching this app's only trackers so far); a baby just outside
- *  7-12mo/1-3y still gets the nearer bracket rather than no comparison at all. */
-export function driBracketFor(correctedMonths: number): DriBracket {
-  return correctedMonths < 12 ? 'infant7_12' : 'child1_3';
+/** Selects the infant/child DRI bracket from chronological age. Only two
+ *  brackets are modeled (matching this app's only trackers so far); a baby
+ *  just outside 7-12mo/1-3y still gets the nearer bracket rather than no
+ *  comparison at all. */
+export function driBracketFor(chronologicalMonths: number): DriBracket {
+  return chronologicalMonths < 12 ? 'infant7_12' : 'child1_3';
 }
 
 /** DRI targets + bracket label for a baby's settings, as of an optional date
- *  (YYYY-MM-DD; defaults to "today" inside correctedAgeMonths). Returns
+ *  (YYYY-MM-DD; defaults to "today" inside chronologicalAgeMonths). Returns
  *  undefined until DOB is set — there's no age to bracket on yet. */
 export function driForSettings(
   dob: string | undefined,
-  gestWeeksAtBirth: number | undefined,
-  gestDaysAtBirth: number | undefined,
   onDate?: string,
 ): { bracket: DriBracket; label: string; targets: NutrientProfile } | undefined {
   if (!dob) return undefined;
-  const months = correctedAgeMonths(dob, gestWeeksAtBirth ?? 40, gestDaysAtBirth ?? 0, onDate);
+  const months = chronologicalAgeMonths(dob, onDate);
   const bracket = driBracketFor(months);
   return { bracket, label: DRI_BRACKET_LABEL[bracket], targets: DRI_TARGETS[bracket] };
 }

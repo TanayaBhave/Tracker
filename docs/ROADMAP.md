@@ -99,6 +99,36 @@ Local-first PWA for tracking a baby's feeding/symptoms ahead of a pediatric GI a
 
 ---
 
+## Phase 3.5 — Usage-feedback fixes (PARALLEL: 2 sub-agents, disjoint files)
+
+Added 2026-07-07 after first day of real use. Baby is 13 mo chronological / ~11.5 mo corrected — the corrected-vs-chronological distinction turned out to matter differently per feature.
+
+### Carryover from Phase 3 (the "finish deploy" checklist)
+`wip/phase3-nutrition-growth` merged to main 2026-07-07 (fast-forward). Still pending, user-only: redeploy on home server (`git pull && docker compose up -d --build`), on-iPhone verification (real 365 UPC scan, airplane-mode rescan, NutritionDay totals vs hand math, GrowthChart percentile vs online calculator), tag. **Recommended: redeploy once Phase 3.5 lands — one deploy, one verification pass.**
+
+### S1 — Manual nutrition entry from the label (M)
+**Problem:** some scanned UPCs (and some name searches) have no USDA match; the flow dead-ends and the item goes untracked.
+**Owns:** `src/components/ManualNutritionSheet.tsx` (new), `src/components/FoodLookupSheet.tsx`, `tests/manual-nutrition.spec.ts` (new).
+- New sheet reachable from FoodLookupSheet: primary button in the `upc-not-found` state ("Enter nutrition from the label") + always-available secondary path under the search results ("Can't find it? Enter from label").
+- Fields: product name (prefill from search query), optional brand, serving size in g/ml as printed on the label, then the same nutrient field list MedSheet's manual editor uses (kcal, protein, fat, carbs, fiber, iron, calcium, zinc, vit D, vit C, vit A, potassium, sodium, folate, B12) — sparse entry allowed, blank = unknown (honest undercount, same convention as blend.ts).
+- Entry basis toggle: **per serving** (US labels; converted to per-100g as `value × 100 / servingGrams`) or **per 100 g** (direct). Store `per100` + `servingGrams`, `nutritionSource: 'manual'`.
+- Keep the scanned `upc` on the saved item — next scan of the same product hits the local `foodCatalog.where('upc')` path and resolves offline, no USDA needed.
+- Link an Ingredient via the existing find-or-create logic (export `findOrCreateIngredient` from FoodLookupSheet or lift both helpers to a shared module) so correlation + recipes see manual items exactly like USDA ones.
+- OCR of the label photo was considered and deferred — manual entry is ~15 numbers once per product, and the value lands in the offline catalog forever.
+
+### S2 — Chronological age: growth-chart tab + nutrition bracket (S/M)
+**Problem 1:** GrowthChart only plots corrected age; user also wants the chronological view. **Problem 2:** the DRI bracket keys off *corrected* age (~11.5 mo → "7–12 months" targets) but nutrition should track *chronological* age (13 mo → "1–3 years" targets) — user decision, matches how their nutritionist tracks.
+**Owns:** `src/growth/age.ts`, `src/components/GrowthChart.tsx`, `src/nutrition/dri.ts`, `src/components/NutritionDay.tsx`, `tests/growth.spec.ts`.
+- `age.ts`: add `chronologicalAgeMonths(dob, onDate?)` (daysBetween ÷ 30.4375). Keep `correctedAgeMonths` untouched (Fenton + corrected WHO still use it).
+- `GrowthChart.tsx`: three view chips — **WHO (corrected)** (unchanged, stays default: standard practice for preterm <24 mo), **WHO (chronological)** (same LMS curves, scatter + header stat computed at chronological age, axis/labels say "chronological"), **Fenton** (unchanged). Add a one-line hint on the chronological tab that preterm babies typically track lower against chronological age — descriptive, not diagnostic.
+- `dri.ts`: bracket selection and `driForSettings` switch to **chronological** age only (gestation params drop out; update NutritionDay call site + comments citing the user decision). 
+- `NutritionDay.tsx`: bracket line reads e.g. "1–3 years bracket (chronological age)".
+- Tests: extend `growth.spec.ts` for the new tab + `chronologicalAgeMonths`; assert the DRI bracket for a 13-mo-chronological / 34-week-preterm profile is `child1_3`.
+
+**Parallel-run rule:** Playwright's `reuseExistingServer` would silently share a preview server across concurrent runs — agents must run tests with `CI=1` set and retry if port 4173 is busy.
+
+---
+
 ## Phase 4 — M2 insights (day 2, L, parallelizable W6a/b/c)
 
 - **W6a** `src/insights/engine.ts`: association-window correlation (exposures/outcomes/rate per ingredient/tag/texture, raw counts always), duration-factor pre/post baseline. Pure functions.
@@ -122,6 +152,8 @@ Sync-status pill in top bar, red-flag copy pass, descriptive-not-diagnostic audi
 | 2 | serial | App.tsx (Charts tab), ChartsScreen, tests/**, deploy |
 | 3 | W4 | server/usda.js, src/nutrition/**, scanner/lookup/NutritionDay, MealSheet |
 | 3 | W5 | src/growth/**, GrowthChart |
+| 3.5 | S1 | ManualNutritionSheet (new), FoodLookupSheet, tests/manual-nutrition.spec.ts |
+| 3.5 | S2 | src/growth/age.ts, GrowthChart, src/nutrition/dri.ts, NutritionDay, tests/growth.spec.ts |
 | 4 | W6a/b/c | src/insights/**, report route |
 
 ## Risks

@@ -87,8 +87,8 @@ export function NutritionDay() {
   const intake = useLiveQuery(() => computeDailyIntake(date), [date]);
 
   const dri = useMemo(
-    () => driForSettings(settings?.dob, settings?.gestWeeksAtBirth, settings?.gestDaysAtBirth, date),
-    [settings?.dob, settings?.gestWeeksAtBirth, settings?.gestDaysAtBirth, date],
+    () => driForSettings(settings?.dob, date),
+    [settings?.dob, date],
   );
 
   if (!intake) return null; // useLiveQuery hasn't resolved its first result yet
@@ -122,7 +122,7 @@ export function NutritionDay() {
           {Math.round(intake.kcal ?? 0)} kcal
         </div>
         <div style={{ color: 'var(--ink-soft)', fontSize: 13, marginTop: 2 }}>
-          {dri ? `${dri.label} bracket · ` : ''}{intake.coverage}
+          {dri ? `${dri.label} bracket (chronological age) · ` : ''}{intake.coverage}
           {intake.supplementDoses > 0
             && ` · incl. ${intake.supplementDoses} supplement dose${intake.supplementDoses === 1 ? '' : 's'}`}
         </div>
