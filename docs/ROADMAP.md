@@ -127,6 +127,15 @@ Added 2026-07-07 after first day of real use. Baby is 13 mo chronological / ~11.
 
 **Parallel-run rule:** Playwright's `reuseExistingServer` would silently share a preview server across concurrent runs — agents must run tests with `CI=1` set and retry if port 4173 is busy.
 
+## Phase 3.6 — Units + sugar (single agent, serial)
+
+Added 2026-07-07, second round of usage feedback. Math audit result: blendPer100 (grams-weighted) and computeDailyIntake (per100 × eaten/100) are already correct — the gaps are unit *display* and the missing sugar nutrient.
+
+- **Recipe units**: per-component `g`/`mL` chip in RecipeBuilderSheet (default by component category: liquid/formula/breastmilk → mL, else g), stored as `unit?: 'g'|'ml'` on `recipeComponents` (types only, no Dexie bump). Math treats 1 mL = 1 g (≈1 density at baby-food scale; say so in a hint). Show the summed **total dish weight** under the rows — that's the number to log as "given" at meal time.
+- **Meal sheet units**: Given/Eaten field labels show the item's unit ("Given (g)" / "Eaten (mL)") — the unit was already tracked, never displayed.
+- **Sugar tracking**: `sugar_g` (USDA #2000, fallback #1063 NLEA) + `addedSugar_g` (#1235, branded only) added to NutrientProfile, usdaMap, blend/intake key lists (centralize the duplicated NUTRIENT_KEYS into db.ts), ManualNutritionSheet + MedSheet field lists, NutritionDay rows (raw grams, no %DRI bar — no DRI exists for sugar; note AAP guidance: no added sugar under age 2).
+- **Refresh nutrition data** (Settings button): re-fetch per100 for every catalog item with an fdcId (server usda_cache makes this cheap), then re-blend every `nutritionSource:'recipe'` item from its stored recipeComponents; bump updatedAt so it syncs. Needed once so already-scanned foods gain sugar values.
+
 ---
 
 ## Phase 4 — M2 insights (day 2, L, parallelizable W6a/b/c)
