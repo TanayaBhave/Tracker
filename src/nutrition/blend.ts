@@ -2,13 +2,8 @@
 // per-100g nutrient profile — the core of the recipe/composite-dish feature.
 // No I/O here (no db, no fetch); callers (RecipeBuilderSheet) do the Dexie
 // reads/writes and pass plain { per100, grams } component data in.
+import { NUTRIENT_KEYS } from '../db';
 import type { NutrientProfile } from '../db';
-
-const NUTRIENT_KEYS: (keyof NutrientProfile)[] = [
-  'kcal', 'protein_g', 'fat_g', 'carbs_g', 'fiber_g', 'iron_mg', 'calcium_mg',
-  'zinc_mg', 'vitD_ug', 'vitC_mg', 'vitA_ug_rae', 'potassium_mg', 'sodium_mg',
-  'folate_ug', 'vitB12_ug',
-];
 
 export interface BlendResult {
   per100: NutrientProfile;

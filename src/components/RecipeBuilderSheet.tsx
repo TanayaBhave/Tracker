@@ -20,11 +20,19 @@ type ComponentRow = {
   key: string;            // React key only, never persisted
   catalogId: string;
   grams: string;          // controlled input text
+  unit: 'g' | 'ml';       // display only — math always treats 1 mL = 1 g
   name: string;
   brand?: string;
   per100?: NutrientProfile;
   ingredientIds: string[];
 };
+
+/** Default unit for a newly-added component, from its catalog category:
+ *  liquid/formula/breastmilk are naturally measured in mL, everything else
+ *  in g. Matches the same category -> unit rule MealSheet uses. */
+function defaultUnitForCategory(category: FoodCategory | undefined): 'g' | 'ml' {
+  return category === 'liquid' || category === 'formula' || category === 'breastmilk' ? 'ml' : 'g';
+}
 
 const CATEGORY_OPTIONS: { value: FoodCategory; label: string }[] = [
   { value: 'puree', label: 'Purée' }, { value: 'solid', label: 'Solid' },
@@ -67,6 +75,7 @@ export function RecipeBuilderSheet({ onSave, onClose, editCatalogId }: Props) {
           key: newId(),
           catalogId: c.catalogId,
           grams: String(c.grams),
+          unit: c.unit ?? 'g', // old records saved before Phase 3.6 default to 'g'
           name: dish?.name ?? '(deleted item)',
           brand: dish?.brand,
           per100: dish?.per100,
@@ -100,6 +109,7 @@ export function RecipeBuilderSheet({ onSave, onClose, editCatalogId }: Props) {
       key,
       catalogId,
       grams: '0',
+      unit: defaultUnitForCategory(dish?.category),
       name: dish?.name ?? 'Unknown item',
       brand: dish?.brand,
       per100: dish?.per100,
@@ -109,6 +119,10 @@ export function RecipeBuilderSheet({ onSave, onClose, editCatalogId }: Props) {
 
   function updateGrams(key: string, value: string) {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, grams: value } : r)));
+  }
+
+  function updateUnit(key: string, unit: 'g' | 'ml') {
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, unit } : r)));
   }
 
   function removeRow(key: string) {
@@ -134,7 +148,7 @@ export function RecipeBuilderSheet({ onSave, onClose, editCatalogId }: Props) {
     const componentsForBlend = rows.map((r) => ({ per100: r.per100, grams: Number(r.grams) || 0 }));
     const blended = blendPer100(componentsForBlend);
     const ingredientIds = unionIngredientIds(rows.map((r) => r.ingredientIds));
-    const recipeComponents = rows.map((r) => ({ catalogId: r.catalogId, grams: Number(r.grams) || 0 }));
+    const recipeComponents = rows.map((r) => ({ catalogId: r.catalogId, grams: Number(r.grams) || 0, unit: r.unit }));
     const now = new Date().toISOString();
     const fields = {
       name: trimmed,
@@ -172,20 +186,35 @@ export function RecipeBuilderSheet({ onSave, onClose, editCatalogId }: Props) {
       <Field label="Category">
         <ChipSelect value={category} allowClear={false} onChange={(v) => v && setCategory(v)} options={CATEGORY_OPTIONS} />
       </Field>
-      <Field label="Ingredients" hint="Scan a barcode or search USDA for each component, then set its grams in this dish.">
+      <Field
+        label="Ingredients"
+        hint="Scan a barcode or search USDA for each component, then set its amount and unit. g and mL are treated as equal (density ≈1 at baby-food scale)."
+      >
         {rows.length > 0 && (
           <div style={{ marginBottom: 10 }}>
             {rows.map((r) => (
-              <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div key={r.key} className="recipe-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{r.name}</div>
                   {r.brand && <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>{r.brand}</div>}
                 </div>
                 <input
                   ref={(el) => { gramsInputRefs.current.set(r.key, el); }}
-                  type="number" inputMode="decimal" style={{ width: 84, flex: '0 0 auto' }}
+                  type="number" inputMode="decimal" style={{ width: 72, flex: '0 0 auto' }}
                   value={r.grams} onChange={(e) => updateGrams(r.key, e.target.value)}
                 />
+                <div style={{ display: 'flex', gap: 4, flex: '0 0 auto' }}>
+                  {(['g', 'ml'] as const).map((u) => (
+                    <button
+                      key={u} type="button"
+                      className={`chip ${r.unit === u ? 'on' : ''}`}
+                      style={{ padding: '8px 10px', minHeight: 'auto', fontSize: 13 }}
+                      onClick={() => updateUnit(r.key, u)}
+                    >
+                      {u === 'ml' ? 'mL' : 'g'}
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button" className="btn ghost"
                   style={{ flex: '0 0 auto', minHeight: 'auto', padding: '8px 12px' }}
@@ -195,6 +224,11 @@ export function RecipeBuilderSheet({ onSave, onClose, editCatalogId }: Props) {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+        {hasGrams && (
+          <div className="hint" style={{ margin: '-2px 2px 10px' }}>
+            Total dish: {Math.round(preview.totalGrams)} g — log this as "given" at meal time, and the app scales nutrition by how much was eaten.
           </div>
         )}
         <div className="choices">
