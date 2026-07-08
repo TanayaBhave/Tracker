@@ -14,12 +14,20 @@ import { RecipeBuilderSheet } from '../RecipeBuilderSheet';
 type Props = { onClose: () => void; editId?: string };
 const toISO = (local: string) => new Date(local).toISOString();
 
+/** Default amount unit for a category — liquids are naturally measured in mL,
+ *  everything else in g. Just the starting point: the user can override it
+ *  with the Unit chip below, per meal. */
+function defaultUnitForCategory(category: FoodItem['category']): 'g' | 'ml' {
+  return category === 'liquid' || category === 'formula' || category === 'breastmilk' ? 'ml' : 'g';
+}
+
 export function MealSheet({ onClose, editId }: Props) {
   const [when, setWhen] = useState(nowLocalISO());
   const [foodName, setFoodName] = useState('');
   const [catalogId, setCatalogId] = useState<string>();
   const [ingredientIds, setIngredientIds] = useState<string[]>([]);
   const [category, setCategory] = useState<FoodItem['category']>('puree');
+  const [unit, setUnit] = useState<'g' | 'ml'>('g');
   const [amountGiven, setAmountGiven] = useState('');
   const [amountConsumed, setAmountConsumed] = useState('');
   const [duration, setDuration] = useState('');
@@ -56,7 +64,9 @@ export function MealSheet({ onClose, editId }: Props) {
     setFoodName(existing.foodItems[0]?.name ?? '');
     setCatalogId(existing.foodItems[0]?.catalogId);
     setIngredientIds(existing.foodItems[0]?.ingredientIds ?? []);
-    setCategory(existing.foodItems[0]?.category ?? 'puree');
+    const existingCategory = existing.foodItems[0]?.category ?? 'puree';
+    setCategory(existingCategory);
+    setUnit(existing.foodItems[0]?.unit ?? defaultUnitForCategory(existingCategory));
     setAmountGiven(existing.foodItems[0]?.amountGiven?.toString() ?? '');
     setAmountConsumed(existing.foodItems[0]?.amountConsumed?.toString() ?? '');
     setDuration(existing.durationMinutes?.toString() ?? '');
@@ -84,6 +94,7 @@ export function MealSheet({ onClose, editId }: Props) {
   function pickDish(dish: FoodCatalogItem) {
     setFoodName(dish.name);
     setCategory(dish.category);
+    setUnit(defaultUnitForCategory(dish.category));
     setIngredientIds(dish.ingredientIds);
     setCatalogId(dish.id);
     setShowDishSuggestions(false);
@@ -106,9 +117,6 @@ export function MealSheet({ onClose, editId }: Props) {
     const dish = await db.foodCatalog.get(newCatalogId);
     if (dish) pickDish(dish);
   }
-
-  const unit: 'g' | 'ml' =
-    category === 'liquid' || category === 'formula' || category === 'breastmilk' ? 'ml' : 'g';
 
   async function upsertCatalogItem(name: string): Promise<string> {
     const now = new Date().toISOString();
@@ -200,12 +208,25 @@ export function MealSheet({ onClose, editId }: Props) {
         <IngredientPicker value={ingredientIds} onChange={setIngredientIds} />
       </Field>
       <Field label="Category">
-        <ChipSelect value={category} allowClear={false} onChange={(v) => v && setCategory(v)} options={[
-          { value: 'puree', label: 'Purée' }, { value: 'solid', label: 'Solid' },
-          { value: 'finger-food', label: 'Finger' }, { value: 'liquid', label: 'Liquid' },
-          { value: 'formula', label: 'Formula' }, { value: 'breastmilk', label: 'Breastmilk' },
-          { value: 'other', label: 'Other' },
-        ]} />
+        <ChipSelect
+          value={category}
+          allowClear={false}
+          onChange={(v) => { if (v) { setCategory(v); setUnit(defaultUnitForCategory(v)); } }}
+          options={[
+            { value: 'puree', label: 'Purée' }, { value: 'solid', label: 'Solid' },
+            { value: 'finger-food', label: 'Finger' }, { value: 'liquid', label: 'Liquid' },
+            { value: 'formula', label: 'Formula' }, { value: 'breastmilk', label: 'Breastmilk' },
+            { value: 'other', label: 'Other' },
+          ]}
+        />
+      </Field>
+      <Field label="Unit" hint="Defaults from category — tap to override for this meal.">
+        <ChipSelect
+          value={unit}
+          allowClear={false}
+          onChange={(v) => v && setUnit(v)}
+          options={[{ value: 'g', label: 'Grams (g)' }, { value: 'ml', label: 'Milliliters (mL)' }]}
+        />
       </Field>
       <div style={{ display: 'flex', gap: 10 }}>
         <Field label={`Given (${unit === 'ml' ? 'mL' : 'g'})`}><input type="number" inputMode="decimal" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value)} /></Field>
