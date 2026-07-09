@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import type { PlotConfig } from './insights/adapters';
 
 // ---- Shared base fields on every record ----
 export interface BaseRecord {
@@ -216,6 +217,15 @@ export interface MedCatalogItem extends BaseRecord {
   archived: number;           // 0 | 1
 }
 
+// Plot Builder saved view (Phase 4, W6b): persists a Plot Builder screen's
+// full selection so a favorite chart doesn't need rebuilding each time. See
+// src/insights/adapters.ts for the PlotConfig shape.
+export interface SavedView extends BaseRecord {
+  type: 'savedView';
+  name: string;
+  config: PlotConfig;
+}
+
 // Synced singleton (id SETTINGS_ID) — baby profile + analysis config shared across devices.
 export interface AppSettings extends BaseRecord {
   type: 'settings';
@@ -248,6 +258,7 @@ export class BabyDB extends Dexie {
   foodCatalog!: Table<FoodCatalogItem, string>;
   settings!: Table<AppSettings, string>;
   medCatalog!: Table<MedCatalogItem, string>;
+  savedViews!: Table<SavedView, string>;
 
   constructor() {
     super('babyTracker');
@@ -312,6 +323,11 @@ export class BabyDB extends Dexie {
     this.version(3).stores({
       medCatalog: 'id, name, upc, updatedAt, deleted',
     });
+    // v4 adds ONLY the Plot Builder saved-views table (Phase 4, W6b) — brand
+    // new empty table, no data to migrate.
+    this.version(4).stores({
+      savedViews: 'id, name, updatedAt, deleted',
+    });
   }
 }
 
@@ -320,7 +336,7 @@ export class BabyDB extends Dexie {
 export const SYNC_TABLES = [
   'meals', 'meds', 'vomits', 'stools', 'gassiness', 'activity', 'sleep',
   'weights', 'symptoms', 'factors', 'factorEvents', 'ingredients', 'foodCatalog', 'settings',
-  'medCatalog',
+  'medCatalog', 'savedViews',
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 
