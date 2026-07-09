@@ -5,13 +5,17 @@ import { BabyProfileSettings } from './BabyProfileSettings';
 import { SyncSettings } from './SyncSettings';
 import { refreshNutritionData } from '../nutrition/refresh';
 import { CatalogManagerSheet } from './CatalogManagerSheet';
-import { BookOpenCheck } from 'lucide-react';
+import { FactorManagerSheet } from './FactorManagerSheet';
+import { GIReportSheet } from './GIReportSheet';
+import { BookOpenCheck, Sparkles, FileText } from 'lucide-react';
 
 export function Settings() {
   const [label, setLabel] = useState(deviceLabel());
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState<string>();
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [factorsOpen, setFactorsOpen] = useState(false);
+  const [giReportOpen, setGiReportOpen] = useState(false);
   const counts = useLiveQuery(async () => ({
     meals: await db.meals.where('deleted').equals(0).count(),
     vomits: await db.vomits.where('deleted').equals(0).count(),
@@ -64,6 +68,30 @@ export function Settings() {
         Edit or delete saved foods, recipes, and ingredient tags; merge duplicate ingredients.
       </div>
       {catalogOpen && <CatalogManagerSheet onClose={() => setCatalogOpen(false)} />}
+
+      <div className="section-label">Insights</div>
+      <div className="sheet-actions">
+        <button type="button" className="btn ghost" onClick={() => setFactorsOpen(true)}>
+          <Sparkles size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 6 }} />
+          Manage Factors
+        </button>
+      </div>
+      <div className="hint" style={{ margin: '6px 2px 0' }}>
+        Create custom trackable labels (car rides, teething, lack of sleep…) and log occurrences.
+      </div>
+      {factorsOpen && <FactorManagerSheet onClose={() => setFactorsOpen(false)} />}
+
+      <div className="sheet-actions" style={{ marginTop: 10 }}>
+        <button type="button" className="btn ghost" onClick={() => setGiReportOpen(true)}>
+          <FileText size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 6 }} />
+          Print GI report
+        </button>
+      </div>
+      <div className="hint" style={{ margin: '6px 2px 0' }}>
+        A clean, printable summary for your pediatric GI appointment — weight trend, vomit/stool patterns, suspect foods, and more.
+      </div>
+      {giReportOpen && <GIReportSheet onClose={() => setGiReportOpen(false)} />}
+
       <div className="section-label">Stored locally</div>
       <div className="entry"><div className="body">
         <div className="title">{counts?.meals ?? 0} meals · {counts?.vomits ?? 0} vomits · {counts?.stools ?? 0} nappies</div>
