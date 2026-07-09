@@ -4,19 +4,35 @@
 // an always-available "Can't find it?" link during a name search — mirrors
 // the USDA path's contract (`onSelect(catalogId)`) so MealSheet/RecipeBuilderSheet
 // continue identically either way.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { db, baseFields } from '../db';
-import type { FoodCatalogItem, NutrientProfile } from '../db';
+import type { FoodCatalogItem, FoodCategory, NutrientProfile } from '../db';
 import { Sheet } from './Sheet';
 import { Field, ChipSelect } from './Fields';
 import { findOrCreateIngredient } from './FoodLookupSheet';
+import { reblendDependents } from '../nutrition/cascade';
 
 type Props = {
   upc?: string;
   initialName?: string;
+  /** When set, edits this existing plain (non-recipe) catalog item in place
+   *  instead of creating a new one — the only edit path for a plain item
+   *  (RecipeBuilderSheet only opens for recipes). */
+  editCatalogId?: string;
   onSelect: (catalogId: string) => void;
   onClose: () => void;
 };
+
+// Same list/order as RecipeBuilderSheet's local CATEGORY_OPTIONS — duplicated
+// rather than imported, matching this file's established convention (see
+// NUTRIENT_FIELDS comment below) of duplicating small, stable option lists
+// across sheet components instead of sharing them.
+const CATEGORY_OPTIONS: { value: FoodCategory; label: string }[] = [
+  { value: 'puree', label: 'Purée' }, { value: 'solid', label: 'Solid' },
+  { value: 'finger-food', label: 'Finger' }, { value: 'liquid', label: 'Liquid' },
+  { value: 'formula', label: 'Formula' }, { value: 'breastmilk', label: 'Breastmilk' },
+  { value: 'other', label: 'Other' },
+];
 
 // Same nutrient list/labels as MedSheet's manual "Nutrients per dose" editor
 // (src/components/sheets/MedSheet.tsx) so a hand-entered label reads exactly
@@ -46,14 +62,39 @@ const NUTRIENT_FIELDS: { key: keyof NutrientProfile; label: string }[] = [
 
 type Basis = 'serving' | '100g';
 
-export function ManualNutritionSheet({ upc, initialName, onSelect, onClose }: Props) {
+export function ManualNutritionSheet({ upc, initialName, editCatalogId, onSelect, onClose }: Props) {
   const [name, setName] = useState(initialName ?? '');
   const [brand, setBrand] = useState('');
+  const [category, setCategory] = useState<FoodCategory>('other');
   const [servingGrams, setServingGrams] = useState('');
-  const [basis, setBasis] = useState<Basis>('serving');
+  // Edit mode defaults to '100g': the stored per100 is already per-100g, so
+  // prefilling it is a lossless direct passthrough — back-deriving a "per
+  // serving" figure would be lossy round-trip math for no benefit.
+  const [basis, setBasis] = useState<Basis>(editCatalogId ? '100g' : 'serving');
   const [nutrients, setNutrients] = useState<Partial<Record<keyof NutrientProfile, string>>>({});
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+
+  // Load and prefill from the existing catalog item when editing.
+  useEffect(() => {
+    if (!editCatalogId) return;
+    void (async () => {
+      const existing = await db.foodCatalog.get(editCatalogId);
+      if (!existing) return;
+      setName(existing.name);
+      setBrand(existing.brand ?? '');
+      setCategory(existing.category);
+      setServingGrams(existing.servingGrams != null ? String(existing.servingGrams) : '');
+      if (existing.per100) {
+        const prefill: Partial<Record<keyof NutrientProfile, string>> = {};
+        for (const { key } of NUTRIENT_FIELDS) {
+          const v = existing.per100[key];
+          if (v != null) prefill[key] = String(v);
+        }
+        setNutrients(prefill);
+      }
+    })();
+  }, [editCatalogId]);
 
   /** Entered nutrient strings -> a per-100g NutrientProfile; undefined when
    *  nothing was entered. Sparse: a blank field is omitted, never 0-filled
@@ -92,6 +133,34 @@ export function ManualNutritionSheet({ upc, initialName, onSelect, onClose }: Pr
       const now = new Date().toISOString();
       const trimmedBrand = brand.trim() || undefined;
       const per100 = computePer100(gramsNum);
+
+      if (editCatalogId) {
+        const existingRec = await db.foodCatalog.get(editCatalogId);
+        if (!existingRec) {
+          setError('Item not found.');
+          return;
+        }
+        // Narrow, explicit change set — everything else on the record
+        // (upc, fdcId, ingredientIds, defaultUnit, lastFetchedAt,
+        // recipeComponents, ...) passes through untouched via the spread.
+        // nutritionSource is deliberately NOT set here: if this is a
+        // USDA-sourced item, leaving it as 'usda' means a future "Refresh
+        // nutrition data" can still re-fetch and overwrite the user's
+        // correction — an accepted tradeoff, not a bug.
+        const changes = {
+          name: trimmedName,
+          brand: trimmedBrand,
+          category,
+          per100,
+          servingGrams: gramsNum,
+          updatedAt: now,
+        };
+        await db.foodCatalog.put({ ...existingRec, ...changes });
+        await reblendDependents([editCatalogId]);
+        onSelect(editCatalogId);
+        return;
+      }
+
       // Dedupe by the scanned UPC (if any) so re-saving the same product
       // updates its catalog entry instead of creating a duplicate — same
       // contract as FoodLookupSheet's upsertCatalogFromUsda.
@@ -115,7 +184,7 @@ export function ManualNutritionSheet({ upc, initialName, onSelect, onClose }: Pr
         id = existing.id;
       } else {
         const rec: FoodCatalogItem = {
-          ...baseFields(), type: 'foodCatalog', category: 'other', defaultUnit: 'g', ...fields,
+          ...baseFields(), type: 'foodCatalog', category, defaultUnit: 'g', ...fields,
         };
         await db.foodCatalog.add(rec);
         id = rec.id;
@@ -128,7 +197,7 @@ export function ManualNutritionSheet({ upc, initialName, onSelect, onClose }: Pr
 
   return (
     <Sheet
-      title="Enter nutrition from label"
+      title={editCatalogId ? 'Edit food' : 'Enter nutrition from label'}
       onClose={onClose}
       onSave={() => { void save(); }}
       saveLabel={saving ? 'Saving…' : 'Save'}
@@ -142,6 +211,14 @@ export function ManualNutritionSheet({ upc, initialName, onSelect, onClose }: Pr
       </Field>
       <Field label="Brand (optional)">
         <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} />
+      </Field>
+      <Field label="Category">
+        <ChipSelect
+          value={category}
+          allowClear={false}
+          onChange={(v) => v && setCategory(v)}
+          options={CATEGORY_OPTIONS}
+        />
       </Field>
       {upc && (
         <div className="hint" style={{ margin: '-8px 2px 14px' }}>

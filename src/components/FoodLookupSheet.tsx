@@ -7,6 +7,7 @@ import type { FoodCatalogItem } from '../db';
 import { searchUSDA, getUsdaFood, lookupByUpc } from '../nutrition/usdaClient';
 import type { UsdaSearchHit, NormalizedUsdaFood } from '../nutrition/usdaClient';
 import { cleanProductName } from '../nutrition/productName';
+import { reblendDependents } from '../nutrition/cascade';
 import { ManualNutritionSheet } from './ManualNutritionSheet';
 
 type Props = { upc?: string; onSelect: (catalogId: string) => void; onClose: () => void };
@@ -58,6 +59,10 @@ async function upsertCatalogFromUsda(food: NormalizedUsdaFood): Promise<string> 
 
   if (existing) {
     await db.foodCatalog.put({ ...existing, ...fields });
+    // Re-scanning an already-catalogued product can change its per100 if
+    // USDA's data changed since the last scan — fix any recipe that uses
+    // this item as a component right away.
+    await reblendDependents([existing.id]);
     return existing.id;
   }
   const rec: FoodCatalogItem = {

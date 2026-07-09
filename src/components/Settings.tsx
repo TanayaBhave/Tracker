@@ -4,11 +4,14 @@ import { db, deviceLabel } from '../db';
 import { BabyProfileSettings } from './BabyProfileSettings';
 import { SyncSettings } from './SyncSettings';
 import { refreshNutritionData } from '../nutrition/refresh';
+import { CatalogManagerSheet } from './CatalogManagerSheet';
+import { BookOpenCheck } from 'lucide-react';
 
 export function Settings() {
   const [label, setLabel] = useState(deviceLabel());
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState<string>();
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const counts = useLiveQuery(async () => ({
     meals: await db.meals.where('deleted').equals(0).count(),
     vomits: await db.vomits.where('deleted').equals(0).count(),
@@ -51,6 +54,16 @@ export function Settings() {
         Re-fetches USDA-sourced foods (picks up newly-added nutrients like sugar) and re-blends recipes built from them. Needs a network connection.
       </div>
       {refreshMsg && <div className="hint" style={{ margin: '6px 2px 0' }}>{refreshMsg}</div>}
+      <div className="sheet-actions" style={{ marginTop: 10 }}>
+        <button type="button" className="btn ghost" onClick={() => setCatalogOpen(true)}>
+          <BookOpenCheck size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 6 }} />
+          Manage foods & ingredients
+        </button>
+      </div>
+      <div className="hint" style={{ margin: '6px 2px 0' }}>
+        Edit or delete saved foods, recipes, and ingredient tags; merge duplicate ingredients.
+      </div>
+      {catalogOpen && <CatalogManagerSheet onClose={() => setCatalogOpen(false)} />}
       <div className="section-label">Stored locally</div>
       <div className="entry"><div className="body">
         <div className="title">{counts?.meals ?? 0} meals · {counts?.vomits ?? 0} vomits · {counts?.stools ?? 0} nappies</div>
