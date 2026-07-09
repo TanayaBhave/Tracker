@@ -2,6 +2,7 @@
 // with a `upc` (from BarcodeScanner) for a fast auto-resolve path, or on its
 // own for a manual name search from MealSheet's Scan button flow.
 import { useEffect, useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { db, baseFields } from '../db';
 import type { FoodCatalogItem } from '../db';
 import { searchUSDA, getUsdaFood, lookupByUpc } from '../nutrition/usdaClient';
@@ -11,6 +12,19 @@ import { reblendDependents } from '../nutrition/cascade';
 import { ManualNutritionSheet } from './ManualNutritionSheet';
 
 type Props = { upc?: string; onSelect: (catalogId: string) => void; onClose: () => void };
+
+/** Same badge text as CatalogManagerSheet.tsx's sourceLabel — duplicated
+ *  rather than imported, matching this codebase's established convention of
+ *  keeping small, stable per-sheet helpers local (see ManualNutritionSheet.tsx's
+ *  NUTRIENT_FIELDS comment for the same reasoning). */
+function sourceLabel(source: FoodCatalogItem['nutritionSource']): string {
+  switch (source) {
+    case 'recipe': return 'Recipe';
+    case 'usda': return 'USDA';
+    case 'manual': return 'Manual';
+    default: return 'No data';
+  }
+}
 
 /** Find-or-create an Ingredient record for a scanned/searched product so the
  *  ingredient-level vomit-correlation engine (and recipes' ingredientIds
@@ -87,6 +101,21 @@ export function FoodLookupSheet({ upc, onSelect, onClose }: Props) {
   // USDA has no match (see ManualNutritionSheet.tsx).
   const [manualOpen, setManualOpen] = useState(false);
   const autoTriedRef = useRef(false);
+
+  // Live, offline, no-network-call match against everything already in this
+  // device's catalog (manual entries, past USDA picks, saved recipes) — the
+  // gap this fixes: search used to hit USDA only, so an ingredient you'd
+  // already hand-entered once could never be found again by searching, only
+  // by re-entering it from scratch. Requires 2+ chars so a near-empty query
+  // doesn't dump the whole catalog.
+  const localMatches = useLiveQuery(async () => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const all = await db.foodCatalog.where('deleted').equals(0).toArray();
+    return all
+      .filter((item) => item.name.toLowerCase().includes(q) || (item.brand ?? '').toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [query]) ?? [];
 
   // Fast path: a scanned UPC tries to resolve straight to a catalog item
   // without making the user search by name at all.
@@ -197,8 +226,41 @@ export function FoodLookupSheet({ upc, onSelect, onClose }: Props) {
                 <div className="warn-banner" style={{ marginTop: 14 }}>{errorMsg}</div>
               )}
 
+              {localMatches.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div className="section-label" style={{ margin: '0 0 8px' }}>Already in your catalog</div>
+                  {localMatches.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="entry"
+                      style={{ width: '100%', textAlign: 'left', background: 'none', borderBottom: '1px solid var(--line-soft)' }}
+                      onClick={() => onSelect(item.id)}
+                      disabled={status === 'saving'}
+                    >
+                      <div className="body">
+                        <div className="title">
+                          {item.name}{' '}
+                          <span style={{
+                            display: 'inline-block', fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)',
+                            background: 'var(--chip-idle)', borderRadius: 999, padding: '2px 8px', marginLeft: 4,
+                          }}
+                          >
+                            {sourceLabel(item.nutritionSource)}
+                          </span>
+                        </div>
+                        {item.brand && <div className="meta">{item.brand}</div>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {results.length > 0 && (
                 <div style={{ marginTop: 16 }}>
+                  {localMatches.length > 0 && (
+                    <div className="section-label" style={{ margin: '0 0 8px' }}>USDA search results</div>
+                  )}
                   {results.map((r) => (
                     <button
                       key={r.fdcId}
