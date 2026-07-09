@@ -27,7 +27,7 @@ export function Timeline({
     const dayAnchor = dayStart;
 
     const out: Row[] = [];
-    const [meals, vomits, stools, meds, sleep, weights, gas, activity, symptoms] = await Promise.all([
+    const [meals, vomits, stools, meds, sleep, weights, gas, activity, symptoms, factorEvents, factors] = await Promise.all([
       db.meals.where('deleted').equals(0).toArray(),
       db.vomits.where('deleted').equals(0).toArray(),
       db.stools.where('deleted').equals(0).toArray(),
@@ -37,7 +37,10 @@ export function Timeline({
       db.gassiness.where('deleted').equals(0).toArray(),
       db.activity.where('deleted').equals(0).toArray(),
       db.symptoms.where('deleted').equals(0).toArray(),
+      db.factorEvents.where('deleted').equals(0).toArray(),
+      db.factors.toArray(),
     ]);
+    const factorById = new Map(factors.map((f) => [f.id, f]));
     for (const m of meals) if (inDay(m.timestamp)) out.push({
       id: m.id, t: m.timestamp, type: m.type,
       title: m.foodItems[0]?.name ?? 'Meal',
@@ -87,6 +90,20 @@ export function Timeline({
       meta: sy.flags.join(' · ') || undefined,
       flag: sy.flags.includes('fever') || sy.flags.includes('fewer-wet-diapers'),
     });
+    // A duration FactorEvent's relevant "day" is its startTime's day (mirrors
+    // sleep's use of startTime); instant/scale use their own timestamp.
+    for (const fe of factorEvents) {
+      const anchorTime = fe.startTime ?? fe.timestamp;
+      if (!inDay(anchorTime)) continue;
+      const factor = factorById.get(fe.factorId);
+      const name = factor?.name ?? 'Factor';
+      const isDuration = fe.startTime !== undefined;
+      out.push({
+        id: fe.id, t: anchorTime!, type: fe.type,
+        title: factor?.kind === 'scale' && fe.value !== undefined ? `${name} · ${fe.value}` : name,
+        meta: isDuration ? (fe.endTime ? `until ${fmtTime(fe.endTime)}` : 'in progress') : (fe.notes || undefined),
+      });
+    }
     out.sort((a, b) => b.t.localeCompare(a.t));
     return out;
   }, [dateStr]);

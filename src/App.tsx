@@ -4,27 +4,35 @@ import { addDaysLocal, todayStr } from './db';
 import { Timeline } from './components/Timeline';
 import { Settings } from './components/Settings';
 import { ChartsScreen } from './components/ChartsScreen';
+import { FactorManagerSheet } from './components/FactorManagerSheet';
 import {
   MealSheet, VomitSheet, StoolSheet, MedSheet,
   GasSheet, ActivitySheet, SleepSheet, WeightSheet, SymptomSheet,
 } from './components/sheets';
+import { FactorEventSheet } from './components/sheets/FactorEventSheet';
 import {
   Utensils, Activity as VomitIcon, Baby, Pill, Moon, Wind, Footprints, Stethoscope, Scale,
-  CalendarDays, Lightbulb, History as HistoryIcon, Settings as SettingsIcon,
+  CalendarDays, Lightbulb, History as HistoryIcon, Settings as SettingsIcon, Sparkles,
 } from 'lucide-react';
 
 type SheetKey =
-  | 'meal' | 'vomit' | 'stool' | 'med' | 'gas' | 'activity' | 'sleep' | 'weight' | 'symptom' | null;
+  | 'meal' | 'vomit' | 'stool' | 'med' | 'gas' | 'activity' | 'sleep' | 'weight' | 'symptom'
+  | 'factorEvent' | null;
 
 type SheetProps = { onClose: () => void; editId?: string };
 const SHEETS: Record<string, (p: SheetProps) => React.ReactElement> = {
   meal: MealSheet, vomit: VomitSheet, stool: StoolSheet, med: MedSheet,
   gas: GasSheet, activity: ActivitySheet, sleep: SleepSheet, weight: WeightSheet, symptom: SymptomSheet,
+  factorEvent: FactorEventSheet,
 };
 
 type SelectHandler = (id: string, type: string) => void;
 
-function Home({ open, onSelect }: { open: (k: SheetKey) => void; onSelect: SelectHandler }) {
+function Home({
+  open, onSelect, onOpenFactorManager,
+}: {
+  open: (k: SheetKey) => void; onSelect: SelectHandler; onOpenFactorManager: () => void;
+}) {
   const today = todayStr();
   return (
     <>
@@ -39,6 +47,7 @@ function Home({ open, onSelect }: { open: (k: SheetKey) => void; onSelect: Selec
         <button className="qbtn tone-activity" onClick={() => open('activity')}><Footprints size={22} aria-hidden="true" /><span>Activity</span></button>
         <button className="qbtn tone-symptom" onClick={() => open('symptom')}><Stethoscope size={22} aria-hidden="true" /><span>Symptoms</span></button>
         <button className="qbtn tone-weight" onClick={() => open('weight')}><Scale size={22} aria-hidden="true" /><span>Weight</span></button>
+        <button className="qbtn tone-factor" onClick={onOpenFactorManager}><Sparkles size={22} aria-hidden="true" /><span>Factor</span></button>
       </div>
       <Timeline dateStr={today} onSelect={onSelect} />
     </>
@@ -86,6 +95,13 @@ export default function App() {
   const [tab, setTab] = useState<'home' | 'history' | 'charts' | 'settings'>('home');
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [editId, setEditId] = useState<string | null>(null);
+  // FactorManagerSheet isn't dispatched through SHEETS/SheetKey like the
+  // fixed event-type sheets — Home's "Factor" tile can't know in advance
+  // which Factor to log (there may be several, or none yet), so it opens
+  // this management screen instead, which owns its own per-factor "Log"
+  // entry point into FactorEventSheet. Kept as separate state so it can be
+  // open independently of the SheetKey-driven quick-add/edit sheets.
+  const [factorManagerOpen, setFactorManagerOpen] = useState(false);
   const SheetComp = sheet ? SHEETS[sheet] : null;
   const dateLabel = new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
@@ -100,7 +116,9 @@ export default function App() {
         <span className="date">{dateLabel}</span>
       </div>
       <div className="content">
-        {tab === 'home' && <Home open={openAdd} onSelect={handleSelect} />}
+        {tab === 'home' && (
+          <Home open={openAdd} onSelect={handleSelect} onOpenFactorManager={() => setFactorManagerOpen(true)} />
+        )}
         {tab === 'history' && <History onSelect={handleSelect} />}
         {tab === 'charts' && <ChartsScreen />}
         {tab === 'settings' && <Settings />}
@@ -114,6 +132,7 @@ export default function App() {
       </nav>
 
       {SheetComp && <SheetComp onClose={closeSheet} editId={editId ?? undefined} />}
+      {factorManagerOpen && <FactorManagerSheet onClose={() => setFactorManagerOpen(false)} />}
     </div>
   );
 }
