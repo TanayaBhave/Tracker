@@ -190,3 +190,23 @@ export function computeDurationFactorBaseline(
     outsideRate: outsideHours === 0 ? 0 : outsideCount / outsideHours,
   };
 }
+
+/** Days between each timestamp and the one before it, once the input is
+ *  sorted ascending — this is the general "gap" primitive behind constipation
+ *  tracking (a growing gap between stool events) and any other "days since
+ *  last X" overlay. The first timestamp has no predecessor in the given
+ *  list, so its gap is `undefined` (not 0 — 0 would wrongly claim "no gap"
+ *  rather than "unknown, nothing came before this one"). Input does not need
+ *  to be pre-sorted; this sorts a copy internally. */
+export function gapsBeforeEach(timestamps: string[]): (number | undefined)[] {
+  const sorted = [...timestamps].sort();
+  const times = sorted.map((t) => new Date(t).getTime());
+  return times.map((t, i) => (i === 0 ? undefined : (t - times[i - 1]) / 86_400_000));
+}
+
+/** The longest gap (in days) between any two consecutive timestamps, once
+ *  sorted ascending — 0 if fewer than 2 timestamps (no gap to measure). */
+export function longestGapDays(timestamps: string[]): number {
+  const gaps = gapsBeforeEach(timestamps).filter((g): g is number => g !== undefined);
+  return gaps.length === 0 ? 0 : Math.max(...gaps);
+}

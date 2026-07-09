@@ -1,5 +1,7 @@
 import { test, expect } from 'playwright/test';
-import { computeLabelRates, computeDurationFactorBaseline } from '../src/insights/engine';
+import {
+  computeLabelRates, computeDurationFactorBaseline, gapsBeforeEach, longestGapDays,
+} from '../src/insights/engine';
 
 // Pure-function unit tests for the Phase 4 insights engine (no browser
 // needed) — run with `npx playwright test tests/insights-engine.spec.ts`.
@@ -216,5 +218,48 @@ test.describe('computeDurationFactorBaseline', () => {
     expect(result.insideRate).toBe(0);
     expect(result.outsideCount).toBe(1);
     expect(result.outsideHours).toBeCloseTo(24, 6);
+  });
+});
+
+test.describe('gapsBeforeEach', () => {
+  test('first timestamp has an undefined gap; later ones get days since the previous', () => {
+    const gaps = gapsBeforeEach([
+      '2026-01-01T00:00:00',
+      '2026-01-04T00:00:00',
+      '2026-01-05T12:00:00',
+    ]);
+    expect(gaps).toHaveLength(3);
+    expect(gaps[0]).toBeUndefined();
+    expect(gaps[1]).toBeCloseTo(3, 6);
+    expect(gaps[2]).toBeCloseTo(1.5, 6);
+  });
+
+  test('unsorted input is sorted internally before computing gaps', () => {
+    const gaps = gapsBeforeEach(['2026-01-05T00:00:00', '2026-01-01T00:00:00', '2026-01-03T00:00:00']);
+    expect(gaps[0]).toBeUndefined();
+    expect(gaps[1]).toBeCloseTo(2, 6);
+    expect(gaps[2]).toBeCloseTo(2, 6);
+  });
+
+  test('empty and single-element input never throw', () => {
+    expect(gapsBeforeEach([])).toEqual([]);
+    expect(gapsBeforeEach(['2026-01-01T00:00:00'])).toEqual([undefined]);
+  });
+});
+
+test.describe('longestGapDays', () => {
+  test('returns the largest gap among several', () => {
+    const days = longestGapDays([
+      '2026-01-01T00:00:00',
+      '2026-01-02T00:00:00',
+      '2026-01-06T00:00:00', // 4-day gap, the largest
+      '2026-01-07T00:00:00',
+    ]);
+    expect(days).toBeCloseTo(4, 6);
+  });
+
+  test('fewer than 2 timestamps returns 0, not NaN or a thrown error', () => {
+    expect(longestGapDays([])).toBe(0);
+    expect(longestGapDays(['2026-01-01T00:00:00'])).toBe(0);
   });
 });
