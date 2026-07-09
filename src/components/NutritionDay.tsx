@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { db, SETTINGS_ID, todayStr } from '../db';
+import { db, SETTINGS_ID, todayStr, addDaysLocal } from '../db';
 import type { NutrientProfile } from '../db';
 import { computeDailyIntake } from '../nutrition/intake';
 import { driForSettings } from '../nutrition/dri';
@@ -117,7 +117,26 @@ export function NutritionDay() {
     <>
       <div className="field" style={{ marginTop: 8 }}>
         <label>Pick a day</label>
-        <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} />
+        <div className="day-nav">
+          <button
+            type="button"
+            className="btn ghost day-nav-btn"
+            aria-label="Previous day"
+            onClick={() => setDate((d) => addDaysLocal(d, -1))}
+          >
+            ‹
+          </button>
+          <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} />
+          <button
+            type="button"
+            className="btn ghost day-nav-btn"
+            aria-label="Next day"
+            disabled={date >= todayStr()}
+            onClick={() => setDate((d) => addDaysLocal(d, 1))}
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       {!settings?.dob && (

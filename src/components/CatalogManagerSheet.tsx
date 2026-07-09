@@ -82,6 +82,7 @@ export function CatalogManagerSheet({ onClose }: Props) {
 function FoodTab({ filter }: { filter: string }) {
   const items = useLiveQuery(() => db.foodCatalog.where('deleted').equals(0).toArray(), []);
   const [editingId, setEditingId] = useState<string>();
+  const [creatingRecipe, setCreatingRecipe] = useState(false);
   const [blocked, setBlocked] = useState<Record<string, string>>({});
 
   const sorted = useMemo(() => {
@@ -105,6 +106,9 @@ function FoodTab({ filter }: { filter: string }) {
 
   return (
     <>
+      <div className="sheet-actions" style={{ marginBottom: 12 }}>
+        <button type="button" className="btn ghost" onClick={() => setCreatingRecipe(true)}>+ New recipe</button>
+      </div>
       {sorted.length === 0 && <div className="empty">No foods match.</div>}
       {sorted.map((row) => (
         <div key={row.id} className="entry" style={{ padding: '11px 4px' }}>
@@ -140,6 +144,12 @@ function FoodTab({ filter }: { filter: string }) {
           editCatalogId={editingRow.id}
           onSelect={() => setEditingId(undefined)}
           onClose={() => setEditingId(undefined)}
+        />
+      )}
+      {creatingRecipe && (
+        <RecipeBuilderSheet
+          onSave={() => setCreatingRecipe(false)}
+          onClose={() => setCreatingRecipe(false)}
         />
       )}
     </>
