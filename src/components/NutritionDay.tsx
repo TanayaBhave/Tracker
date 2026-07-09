@@ -15,7 +15,7 @@ import { driForSettings } from '../nutrition/dri';
 // target browsers, so the hex is duplicated here). Validated as a CVD-safe
 // categorical trio via the dataviz skill's palette checker (all 4 checks pass
 // against this app's --paper surface).
-const MACRO_COLORS = { protein: '#3b7dc4', carbs: '#a98b3d', fat: '#b0538f' } as const;
+const MACRO_COLORS = { protein: '#476385', carbs: '#CDD7CF', fat: '#C8B195' } as const;
 
 const MICRO_ROWS: { key: keyof NutrientProfile; label: string; unit: string; decimals: number }[] = [
   { key: 'fiber_g', label: 'Fiber', unit: 'g', decimals: 1 },
@@ -160,7 +160,9 @@ export function NutritionDay() {
                     </Pie>
                     <Tooltip
                       formatter={(value, name) => `${Math.round(Number(value))} kcal (${name})`}
-                      contentStyle={{ borderRadius: 12, border: '1px solid var(--line)', fontSize: 13 }}
+                      contentStyle={{
+                        borderRadius: 12, border: '1px solid var(--line)', fontSize: 13, background: 'var(--card)', color: 'var(--ink)',
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

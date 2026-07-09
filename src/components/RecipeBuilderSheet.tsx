@@ -13,6 +13,7 @@ import { Field, ChipSelect } from './Fields';
 import { BarcodeScanner } from './BarcodeScanner';
 import { FoodLookupSheet } from './FoodLookupSheet';
 import { blendPer100, unionIngredientIds } from '../nutrition/blend';
+import { reblendDependents } from '../nutrition/cascade';
 
 type Props = { onSave: (catalogId: string) => void; onClose: () => void; editCatalogId?: string };
 
@@ -170,6 +171,11 @@ export function RecipeBuilderSheet({ onSave, onClose, editCatalogId }: Props) {
       await db.foodCatalog.add(rec);
       id = rec.id;
     }
+    // A brand-new recipe can't have existing dependents, but calling this
+    // unconditionally (edit AND create) is harmless and simpler than
+    // branching — fixes any recipe that uses THIS recipe as a component
+    // right away, instead of waiting for the next manual refresh.
+    await reblendDependents([id]);
     onSave(id);
     onClose();
   }

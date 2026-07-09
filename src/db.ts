@@ -352,6 +352,19 @@ export function todayStr(): string {
   return nowLocalISO().slice(0, 10);
 }
 
+// Adds `delta` days (may be negative) to a YYYY-MM-DD string, doing the math
+// in LOCAL time via the Date(y, m, d) constructor rather than parsing the
+// string as UTC (new Date('YYYY-MM-DD') + shift), which can land on the
+// wrong local day near midnight in negative-offset timezones.
+export function addDaysLocal(dateStr: string, delta: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  const yyyy = String(dt.getFullYear()).padStart(4, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function isoToLocal(iso: string): string {
   const d = new Date(iso);
   const off = d.getTimezoneOffset();

@@ -7,7 +7,7 @@
 // overwritten by a network call.
 import { db } from '../db';
 import { getUsdaFood } from './usdaClient';
-import { blendPer100 } from './blend';
+import { reblendAllRecipes } from './cascade';
 
 export interface RefreshResult {
   /** USDA-sourced catalog items successfully re-fetched. */
@@ -50,25 +50,10 @@ export async function refreshNutritionData(): Promise<RefreshResult> {
 
   // Re-blend recipes AFTER the USDA refresh loop above so a recipe built from
   // a just-refreshed component picks up its new nutrients (e.g. sugar) too.
-  let reblended = 0;
-  const recipes = (await db.foodCatalog.where('deleted').equals(0).toArray())
-    .filter((c) => c.nutritionSource === 'recipe' && (c.recipeComponents?.length ?? 0) > 0);
-
-  for (const recipe of recipes) {
-    const components = await Promise.all(
-      (recipe.recipeComponents ?? []).map(async (c) => {
-        const dish = await db.foodCatalog.get(c.catalogId);
-        return { per100: dish?.per100, grams: c.grams };
-      }),
-    );
-    const blended = blendPer100(components);
-    await db.foodCatalog.put({
-      ...recipe,
-      per100: blended.per100,
-      updatedAt: new Date().toISOString(),
-    });
-    reblended += 1;
-  }
+  // reblendAllRecipes() re-blends in dependency order (components before the
+  // recipes that use them), so nested recipes-of-recipes converge correctly
+  // regardless of how many levels deep the change is.
+  const reblended = await reblendAllRecipes();
 
   return { updated, reblended, failed };
 }
