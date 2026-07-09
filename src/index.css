@@ -1,39 +1,37 @@
 :root {
-  /* ---- Warm palette (from docs/ui mock) ---- */
-  --paper: #faf6f0;
-  --card: #ffffff;
-  --ink: #23211d;
-  --ink-soft: #7a7568;
-  --line: #e6ddc9;
-  --line-soft: #efe9dc;
+  /* ---- Dark palette (Deep Midnight Slate) ---- */
+  --paper: #0F1729;
+  --card: #16213A;
+  --ink: #F8FAFC;
+  --ink-soft: #94A3B8;
+  --line: #263349;
+  --line-soft: #1C2740;
 
-  /* Generic UI accent (Save / primary text-affordance). Migrated off the old
-     #c4623c signal color — this is the mock's own "emphasis" blue (the Log
-     Meal timestamp), reused as the one non-event accent so it isn't tied to
-     any specific event type. */
-  --accent: #295b7a;
-  --accent-press: #1e4760;
+  /* Generic UI accent (Save / primary text-affordance) — distinct from any
+     event color. */
+  --accent: #5B8DEF;
+  --accent-press: #4874C7;
 
-  --calm: #4a7c74;
-  --alert: #b23b3b;
+  --calm: #3E7C6C;
+  --alert: #E5484D;
 
   /* Chip idle / selected (neutral, non-toned) */
-  --chip-idle: #efe7db;
-  --chip-selected: #dcd1be;
+  --chip-idle: #1C2740;
+  --chip-selected: #2E3F5C;
 
   /* Event accent colors (quick-add tiles + timeline dots share these) */
-  --ev-meal: #419665;
-  --ev-vomit: #df473c;
-  --ev-stool: #8b5a2b;
-  --ev-sleep: #3b7dc4;
-  --ev-factor: #8e52c7;
-  --ev-med: #3f8f8a;
-  --ev-gas: #a98b3d;
-  --ev-activity: #6a9c4a;
-  --ev-symptom: #b0538f;
-  --ev-weight: #5c66c2;
+  --ev-meal: #2C5E43;
+  --ev-vomit: #A84334;
+  --ev-stool: #5C4033;
+  --ev-sleep: #476385;
+  --ev-factor: #7C5A8C;
+  --ev-med: #DDBFB9;
+  --ev-gas: #CDD7CF;
+  --ev-activity: #6B5B7B;
+  --ev-symptom: #C8B195;
+  --ev-weight: #4A7A96;
 
-  --shadow: 0 1px 3px rgba(31, 36, 33, 0.08), 0 4px 16px rgba(31, 36, 33, 0.05);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 20px rgba(0, 0, 0, 0.35);
   --r: 12px;
   --sheet-r: 32px;
   --tap: 56px;
@@ -41,6 +39,10 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body, #root { margin: 0; height: 100%; }
+/* Tells the browser this page is dark, so native form controls it draws
+   itself — date-picker popups, spinner/checkbox chrome, default scrollbars —
+   use their dark variant instead of flashing light-mode white at night. */
+:root { color-scheme: dark; }
 body {
   font-family: var(--font-body); background: var(--paper); color: var(--ink);
   -webkit-font-smoothing: antialiased; overscroll-behavior-y: none;
@@ -63,7 +65,6 @@ input, select, textarea { font-family: inherit; font-size: 17px; }
   transition: transform .06s ease;
 }
 .qbtn:active { transform: scale(0.96); }
-.qbtn .ico { font-size: 21px; line-height: 1; }
 
 .tone-meal { background: var(--ev-meal); }
 .tone-vomit { background: var(--ev-vomit); }
@@ -74,6 +75,10 @@ input, select, textarea { font-family: inherit; font-size: 17px; }
 .tone-gas { background: var(--ev-gas); }
 .tone-activity { background: var(--ev-activity); }
 .tone-symptom { background: var(--ev-symptom); }
+/* Med and Gassiness are pale pastels — white tile text/icons (the default
+   for every other, darker tone) fail contrast on them, so these two get
+   dark text instead. */
+.tone-med, .tone-gas { color: #241D1A; }
 .tone-weight { background: var(--ev-weight); }
 
 /* ---- Timeline: time gutter + rail + dot ---- */
@@ -101,15 +106,14 @@ input, select, textarea { font-family: inherit; font-size: 17px; }
 /* ---- Bottom nav ---- */
 .nav {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 560px;
-  background: rgba(250,246,240,0.92); backdrop-filter: blur(12px); border-top: 1px solid var(--line-soft);
+  background: rgba(15,23,41,0.85); backdrop-filter: blur(12px); border-top: 1px solid var(--line-soft);
   display: flex; justify-content: space-around; padding: 8px 0 calc(env(safe-area-inset-bottom) + 8px); z-index: 20;
 }
 .nav button { background: none; color: var(--ink-soft); display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; padding: 4px 16px; border-radius: 10px; }
-.nav button .ico { font-size: 20px; }
 .nav button.active { color: var(--ink); font-weight: 700; }
 
 /* ---- Sheet (iOS-style pinned header) ---- */
-.sheet-backdrop { position: fixed; inset: 0; background: rgba(31,36,33,0.45); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
 .sheet {
   background: var(--paper); width: 100%; max-width: 560px;
   border-radius: var(--sheet-r) var(--sheet-r) 0 0;
@@ -145,6 +149,12 @@ input, select, textarea { font-family: inherit; font-size: 17px; }
 }
 .field textarea { min-height: 64px; resize: vertical; }
 
+/* ---- History day navigation (prev/next arrows flank the date input) ---- */
+.day-nav { display: flex; align-items: center; gap: 8px; }
+.day-nav input[type=date] { flex: 1; }
+.day-nav-btn { flex: 0 0 auto; width: 44px; padding: 0; font-size: 20px; line-height: 1; }
+.day-nav-btn:disabled { opacity: 0.35; }
+
 .choices { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { padding: 10px 14px; border-radius: 999px; background: var(--chip-idle); border: 1px solid transparent; color: var(--ink); font-size: 14px; font-weight: 500; min-height: 44px; }
 .chip.on { background: var(--chip-selected); border-color: var(--chip-selected); font-weight: 700; }
@@ -168,6 +178,6 @@ input, select, textarea { font-family: inherit; font-size: 17px; }
 .btn.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
 .btn.ghost.sheet-delete { width: 100%; margin-top: 10px; color: var(--alert); border-color: rgba(178,59,59,.32); background: rgba(178,59,59,.06); }
 
-.warn-banner { background: #fbeae6; border: 1px solid #e8c3b8; color: var(--alert); padding: 10px 12px; border-radius: var(--r); font-size: 13px; margin-bottom: 12px; }
+.warn-banner { background: rgba(229, 72, 77, 0.12); border: 1px solid rgba(229, 72, 77, 0.35); color: var(--alert); padding: 10px 12px; border-radius: var(--r); font-size: 13px; margin-bottom: 12px; }
 .hint { color: var(--ink-soft); font-size: 13px; margin: -8px 4px 14px; }
 @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } .qbtn:active { transform: none; } }

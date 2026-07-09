@@ -41,10 +41,10 @@ const WHO_PERCENTILE_LINES: { key: string; label: string; z: number }[] = [
 ];
 
 const WHO_LINE_COLOR: Record<string, string> = {
-  p3: '#c9beA6', p15: '#a9bf8f', p50: '#295b7a', p85: '#a9bf8f', p97: '#c9beA6',
+  p3: '#8C7F68', p15: '#6E8C5E', p50: '#5B8DEF', p85: '#6E8C5E', p97: '#8C7F68',
 };
 const FENTON_LINE_COLOR: Record<string, string> = {
-  p3: '#c9beA6', p10: '#a9bf8f', p50: '#295b7a', p90: '#a9bf8f', p97: '#c9beA6',
+  p3: '#8C7F68', p10: '#6E8C5E', p50: '#5B8DEF', p90: '#6E8C5E', p97: '#8C7F68',
 };
 
 function daysSince(dateStr: string, todayStr: string): number {
@@ -72,19 +72,30 @@ function WhoChart({
         <XAxis
           dataKey="month" type="number" domain={[0, 24]}
           ticks={[0, 3, 6, 9, 12, 15, 18, 21, 24]}
-          label={{ value: `${axisWord} age (months)`, position: 'bottom', offset: 12, fontSize: 12 }}
-          tick={{ fontSize: 11 }}
+          label={{
+            value: `${axisWord} age (months)`, position: 'bottom', offset: 12, fontSize: 12, fill: '#94A3B8',
+          }}
+          tick={{ fontSize: 11, fill: '#94A3B8' }}
+          axisLine={{ stroke: '#263349' }}
         />
         <YAxis
           type="number" domain={['auto', 'auto']}
-          label={{ value: 'Weight (kg)', angle: -90, position: 'insideLeft', fontSize: 12 }}
-          tick={{ fontSize: 11 }}
+          label={{
+            value: 'Weight (kg)', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#94A3B8',
+          }}
+          tick={{ fontSize: 11, fill: '#94A3B8' }}
+          axisLine={{ stroke: '#263349' }}
         />
         <Tooltip
           formatter={(v) => `${Number(v).toFixed(2)} kg`}
           labelFormatter={(m) => `${Number(m).toFixed(1)} mo ${ageLabel}`}
+          contentStyle={{
+            background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, fontSize: 13, color: 'var(--ink)',
+          }}
+          labelStyle={{ color: 'var(--ink)' }}
+          itemStyle={{ color: 'var(--ink)' }}
         />
-        <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11 }} />
+        <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11, color: 'var(--ink-soft)' }} />
         {WHO_PERCENTILE_LINES.map(({ key, label }) => (
           <Line
             key={key} type="monotone" dataKey={key} name={label}
@@ -221,16 +232,30 @@ export function GrowthChart() {
               <XAxis
                 dataKey="pmaWeeks" type="number" domain={[22, 50]}
                 ticks={[22, 26, 30, 34, 38, 42, 46, 50]}
-                label={{ value: 'Postmenstrual age (weeks)', position: 'bottom', offset: 12, fontSize: 12 }}
-                tick={{ fontSize: 11 }}
+                label={{
+                  value: 'Postmenstrual age (weeks)', position: 'bottom', offset: 12, fontSize: 12, fill: '#94A3B8',
+                }}
+                tick={{ fontSize: 11, fill: '#94A3B8' }}
+                axisLine={{ stroke: '#263349' }}
               />
               <YAxis
                 type="number" domain={['auto', 'auto']}
-                label={{ value: 'Weight (kg)', angle: -90, position: 'insideLeft', fontSize: 12 }}
-                tick={{ fontSize: 11 }}
+                label={{
+                  value: 'Weight (kg)', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#94A3B8',
+                }}
+                tick={{ fontSize: 11, fill: '#94A3B8' }}
+                axisLine={{ stroke: '#263349' }}
               />
-              <Tooltip formatter={(v) => `${Number(v).toFixed(2)} kg`} labelFormatter={(w) => `${Number(w).toFixed(1)} wk PMA`} />
-              <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11 }} />
+              <Tooltip
+                formatter={(v) => `${Number(v).toFixed(2)} kg`}
+                labelFormatter={(w) => `${Number(w).toFixed(1)} wk PMA`}
+                contentStyle={{
+                  background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, fontSize: 13, color: 'var(--ink)',
+                }}
+                labelStyle={{ color: 'var(--ink)' }}
+                itemStyle={{ color: 'var(--ink)' }}
+              />
+              <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11, color: 'var(--ink-soft)' }} />
               <Line type="monotone" dataKey="p3" name="P3" stroke={FENTON_LINE_COLOR.p3} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
               <Line type="monotone" dataKey="p10" name="P10" stroke={FENTON_LINE_COLOR.p10} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
               <Line type="monotone" dataKey="p50" name="P50" stroke={FENTON_LINE_COLOR.p50} strokeWidth={2.5} dot={false} isAnimationActive={false} />
