@@ -53,10 +53,61 @@ function daysSince(dateStr: string, todayStr: string): number {
   return (b - a) / 86_400_000;
 }
 
+interface ChartTooltipEntry {
+  dataKey?: string;
+  name?: string;
+  value?: number;
+  color?: string;
+}
+
+/** Custom Tooltip content, shared by both the WHO and Fenton charts below.
+ *  Recharts' default Tooltip also surfaces the shared X-axis field itself
+ *  (`month`/`pmaWeeks`) as if it were a plotted series, mislabeled through
+ *  the same "X.XX kg" formatter as the real series — `axisKey` excludes it
+ *  here rather than showing a nonsensical "month : 1.64 kg" line. */
+function ChartTooltip({
+  active, payload, label, labelSuffix, axisKey,
+}: {
+  active?: boolean;
+  payload?: ChartTooltipEntry[];
+  label?: number;
+  labelSuffix: string;
+  axisKey: string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const rows = payload.filter((p) => p.dataKey !== axisKey && p.value !== undefined);
+  if (rows.length === 0) return null;
+  return (
+    <div style={{
+      background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12,
+      padding: '8px 12px', fontSize: 13, color: 'var(--ink)',
+    }}
+    >
+      <div style={{ marginBottom: 4, fontWeight: 600 }}>{Number(label).toFixed(1)} {labelSuffix}</div>
+      {rows.map((p) => (
+        <div key={p.dataKey} style={{ color: p.color ?? 'var(--ink)' }}>
+          {p.name}: {Number(p.value).toFixed(2)} kg
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // The WHO weight-for-age curve/axes/tooltip are identical whether the age
 // axis is corrected or chronological — only the age used to place points
 // (and the words describing that age) differ. Shared here so the two tabs
 // render the same ComposedChart rather than two near-duplicate copies.
+//
+// IMPORTANT: the percentile Lines and the logged-weight Scatter must share
+// ONE data array. Recharts resolves hover/tooltip state by index into
+// whichever array a series was given — if the Scatter gets its own separate
+// (shorter, fractional-month) `data` prop while the chart's Lines use a
+// different (25-row, whole-month) `data` prop, Recharts' Tooltip picks
+// mismatched values (confirmed by hand: every scatter dot showed the SAME
+// tooltip — the last weight's value — regardless of which dot was hovered).
+// Fix: merge both into one array sorted by month, and use `connectNulls` on
+// each Line so the rows a weight-only entry adds (no p3/p15/... on them)
+// don't visually break the percentile curves.
 function WhoChart({
   curve, scatter, ageLabel,
 }: {
@@ -65,9 +116,10 @@ function WhoChart({
   ageLabel: 'corrected' | 'chronological';
 }) {
   const axisWord = ageLabel === 'corrected' ? 'Corrected' : 'Chronological';
+  const merged = [...curve, ...scatter].sort((a, b) => a.month - b.month);
   return (
     <ResponsiveContainer>
-      <ComposedChart data={curve} margin={{ top: 8, right: 12, bottom: 32, left: 0 }}>
+      <ComposedChart data={merged} margin={{ top: 8, right: 12, bottom: 32, left: 0 }}>
         <CartesianGrid stroke="var(--line-soft)" />
         <XAxis
           dataKey="month" type="number" domain={[0, 24]}
@@ -86,26 +138,18 @@ function WhoChart({
           tick={{ fontSize: 11, fill: '#94A3B8' }}
           axisLine={{ stroke: '#263349' }}
         />
-        <Tooltip
-          formatter={(v) => `${Number(v).toFixed(2)} kg`}
-          labelFormatter={(m) => `${Number(m).toFixed(1)} mo ${ageLabel}`}
-          contentStyle={{
-            background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, fontSize: 13, color: 'var(--ink)',
-          }}
-          labelStyle={{ color: 'var(--ink)' }}
-          itemStyle={{ color: 'var(--ink)' }}
-        />
+        <Tooltip content={<ChartTooltip labelSuffix={`mo ${ageLabel}`} axisKey="month" />} />
         <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11, color: 'var(--ink-soft)' }} />
         {WHO_PERCENTILE_LINES.map(({ key, label }) => (
           <Line
             key={key} type="monotone" dataKey={key} name={label}
             stroke={WHO_LINE_COLOR[key]} strokeWidth={key === 'p50' ? 2.5 : 1.5}
             strokeDasharray={key === 'p50' ? undefined : '4 3'}
-            dot={false} isAnimationActive={false}
+            dot={false} isAnimationActive={false} connectNulls
           />
         ))}
         {scatter.length > 0 && (
-          <Scatter data={scatter} dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
+          <Scatter dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
         )}
       </ComposedChart>
     </ResponsiveContainer>
@@ -186,6 +230,10 @@ export function GrowthChart() {
       weightKg: toKg(w.weight, w.unit),
     }))
     .filter((p) => p.pmaWeeks <= 50);
+  // Same fix as WhoChart's `merged` above: one shared, sorted data array for
+  // both the percentile Lines and the Scatter (see the comment on WhoChart
+  // for why splitting these into separate `data` props breaks the tooltip).
+  const fentonMerged = [...fentonBoys, ...fentonScatter].sort((a, b) => a.pmaWeeks - b.pmaWeeks);
 
   return (
     <>
@@ -227,7 +275,7 @@ export function GrowthChart() {
           <WhoChart curve={whoCurve} scatter={whoScatter} ageLabel={ageMode} />
         ) : (
           <ResponsiveContainer>
-            <ComposedChart data={fentonBoys} margin={{ top: 8, right: 12, bottom: 32, left: 0 }}>
+            <ComposedChart data={fentonMerged} margin={{ top: 8, right: 12, bottom: 32, left: 0 }}>
               <CartesianGrid stroke="var(--line-soft)" />
               <XAxis
                 dataKey="pmaWeeks" type="number" domain={[22, 50]}
@@ -246,23 +294,15 @@ export function GrowthChart() {
                 tick={{ fontSize: 11, fill: '#94A3B8' }}
                 axisLine={{ stroke: '#263349' }}
               />
-              <Tooltip
-                formatter={(v) => `${Number(v).toFixed(2)} kg`}
-                labelFormatter={(w) => `${Number(w).toFixed(1)} wk PMA`}
-                contentStyle={{
-                  background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 12, fontSize: 13, color: 'var(--ink)',
-                }}
-                labelStyle={{ color: 'var(--ink)' }}
-                itemStyle={{ color: 'var(--ink)' }}
-              />
+              <Tooltip content={<ChartTooltip labelSuffix="wk PMA" axisKey="pmaWeeks" />} />
               <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11, color: 'var(--ink-soft)' }} />
-              <Line type="monotone" dataKey="p3" name="P3" stroke={FENTON_LINE_COLOR.p3} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="p10" name="P10" stroke={FENTON_LINE_COLOR.p10} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="p50" name="P50" stroke={FENTON_LINE_COLOR.p50} strokeWidth={2.5} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="p90" name="P90" stroke={FENTON_LINE_COLOR.p90} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="p97" name="P97" stroke={FENTON_LINE_COLOR.p97} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="p3" name="P3" stroke={FENTON_LINE_COLOR.p3} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls />
+              <Line type="monotone" dataKey="p10" name="P10" stroke={FENTON_LINE_COLOR.p10} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls />
+              <Line type="monotone" dataKey="p50" name="P50" stroke={FENTON_LINE_COLOR.p50} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
+              <Line type="monotone" dataKey="p90" name="P90" stroke={FENTON_LINE_COLOR.p90} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls />
+              <Line type="monotone" dataKey="p97" name="P97" stroke={FENTON_LINE_COLOR.p97} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls />
               {fentonScatter.length > 0 && (
-                <Scatter data={fentonScatter} dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
+                <Scatter dataKey="weightKg" name="Logged weight" fill="var(--ev-weight)" />
               )}
             </ComposedChart>
           </ResponsiveContainer>
