@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'Baby Feeding Tracker',
         short_name: 'BabyTrack',
         description: 'Track feeding, reflux and symptoms — offline-first.',
-        theme_color: '#c4623c',
-        background_color: '#f7f5f1',
+        theme_color: '#0F1729',
+        background_color: '#0F1729',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
