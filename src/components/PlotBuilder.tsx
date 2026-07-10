@@ -22,9 +22,11 @@ import { Field, ChipSelect } from './Fields';
 import { computeLabelRates, computeDurationFactorBaseline } from '../insights/engine';
 import {
   mealsToExposures, factorEventsToDurationIntervals, bucketCounts,
-  inDateRange, isProblemStoolConsistency, dateOnlyToLocalNoon,
+  inDateRange, eventTimestampsFor, outcomeChoiceLabel,
 } from '../insights/adapters';
-import type { OutcomeChoice, LabelCategory, PlotConfig, PlotMode } from '../insights/adapters';
+import type {
+  OutcomeChoice, LabelSource, PlotConfig, PlotMode,
+} from '../insights/adapters';
 
 // Single-series bar fill — literal hex per this app's dark-theme Recharts
 // convention (SVG marks can't reliably use var(--...) cross-browser on iOS
@@ -50,14 +52,30 @@ function defaultRangeStart(): string {
   return addDaysLocal(todayStr(), -13); // 14-day window by default (inclusive of today)
 }
 
+// Label-source selection is modeled as a flat string union, same pattern as
+// OutcomeKey above, so it drops into ChipSelect<T extends string> — converted
+// to/from the richer LabelSource (what's actually persisted in PlotConfig) at
+// the edges. Mirrors OutcomeKey's event kinds exactly, since any signal that
+// can be an outcome can equally be chosen as what to compare against.
+type LabelSourceKey = 'ingredients' | 'textures' | 'both' | 'vomit' | 'gas-more' | 'stool-problem' | `factor:${string}`;
+
+function labelSourceToKey(source: LabelSource): LabelSourceKey {
+  if (source.kind === 'meal') return source.category;
+  return outcomeToKey(source.event);
+}
+function keyToLabelSource(key: LabelSourceKey): LabelSource {
+  if (key === 'ingredients' || key === 'textures' || key === 'both') return { kind: 'meal', category: key };
+  return { kind: 'event', event: keyToOutcome(key) };
+}
+
 export function PlotBuilder() {
   const [rangeStart, setRangeStart] = useState(defaultRangeStart());
   const [rangeEnd, setRangeEnd] = useState(todayStr());
   const [outcome, setOutcome] = useState<OutcomeChoice>({ kind: 'vomit' });
   const [mode, setMode] = useState<PlotMode>('labels');
-  const [labelCategory, setLabelCategory] = useState<LabelCategory>('ingredients');
+  const [labelSource, setLabelSource] = useState<LabelSource>({ kind: 'meal', category: 'ingredients' });
   const [durationFactorId, setDurationFactorId] = useState<string>();
-  const [bucket, setBucket] = useState<'day' | 'week'>('day');
+  const [bucket, setBucket] = useState<'day' | 'week' | 'month'>('day');
 
   const settings = useLiveQuery(() => db.settings.get(SETTINGS_ID), []);
   const windowHours = settings?.associationWindowHours ?? 2;
@@ -87,30 +105,29 @@ export function PlotBuilder() {
   for (const ing of ingredients) ingredientNameById.set(ing.id, ing.name);
   const labelDisplayName = (label: string) => ingredientNameById.get(label) ?? label;
 
+  const factorNameById = new Map<string, string>();
+  for (const f of factors) factorNameById.set(f.id, f.name);
+
   const catalogIngredientIds: Record<string, string[]> = {};
   for (const c of catalog) catalogIngredientIds[c.id] = c.ingredientIds;
 
+  const eventSourceData = {
+    vomits, gassiness, stools, factorEvents,
+  };
+
   // ---- Outcome events for the chosen outcome kind, filtered to the date range ----
-  let outcomeTimestamps: string[];
-  if (outcome.kind === 'vomit') {
-    outcomeTimestamps = vomits.map((v) => v.timestamp);
-  } else if (outcome.kind === 'gas-more') {
-    outcomeTimestamps = gassiness.filter((g) => g.level === 'more').map((g) => dateOnlyToLocalNoon(g.date));
-  } else if (outcome.kind === 'stool-problem') {
-    outcomeTimestamps = stools.filter((s) => isProblemStoolConsistency(s.consistency)).map((s) => s.timestamp);
-  } else {
-    const { factorId } = outcome;
-    outcomeTimestamps = factorEvents
-      .filter((e) => e.factorId === factorId && e.timestamp)
-      .map((e) => e.timestamp as string);
-  }
-  const outcomeEvents = outcomeTimestamps
+  const outcomeEvents = eventTimestampsFor(outcome, eventSourceData)
     .filter((t) => inDateRange(t, rangeStart, rangeEnd))
     .map((timestamp) => ({ timestamp }));
 
-  // ---- mode: 'labels' — per-ingredient/texture rate table ----
+  // ---- mode: 'labels' — per-label (ingredient/texture, or another event
+  // signal entirely) rate table, against the chosen outcome above ----
   const mealsInRange = meals.filter((m) => inDateRange(m.timestamp, rangeStart, rangeEnd));
-  const exposures = mealsToExposures(mealsInRange, catalogIngredientIds, labelCategory);
+  const exposures = labelSource.kind === 'meal'
+    ? mealsToExposures(mealsInRange, catalogIngredientIds, labelSource.category)
+    : eventTimestampsFor(labelSource.event, eventSourceData)
+      .filter((t) => inDateRange(t, rangeStart, rangeEnd))
+      .map((timestamp) => ({ timestamp, labels: [outcomeChoiceLabel(labelSource.event, factorNameById)] }));
   const labelRates = computeLabelRates(exposures, outcomeEvents, windowHours)
     .slice()
     .sort((a, b) => b.rate - a.rate);
@@ -142,7 +159,7 @@ export function PlotBuilder() {
   // ---- Saved views ----
   function currentConfig(): PlotConfig {
     return {
-      rangeStart, rangeEnd, outcome, mode, labelCategory, durationFactorId, bucket,
+      rangeStart, rangeEnd, outcome, mode, labelSource, durationFactorId, bucket,
     };
   }
   async function saveView() {
@@ -158,7 +175,7 @@ export function PlotBuilder() {
     setRangeEnd(c.rangeEnd);
     setOutcome(c.outcome);
     setMode(c.mode);
-    setLabelCategory(c.labelCategory);
+    setLabelSource(c.labelSource);
     setDurationFactorId(c.durationFactorId);
     setBucket(c.bucket);
   }
@@ -167,11 +184,25 @@ export function PlotBuilder() {
     await db.savedViews.update(view.id, { deleted: 1, updatedAt: new Date().toISOString() });
   }
 
-  const outcomeOptions = [
-    { value: 'vomit' as OutcomeKey, label: 'Vomit' },
-    { value: 'gas-more' as OutcomeKey, label: 'Gassiness (more)' },
-    { value: 'stool-problem' as OutcomeKey, label: 'Stool (hard/loose/watery)' },
-    ...scaleFactors.map((f) => ({ value: `factor:${f.id}` as OutcomeKey, label: f.name })),
+  // Shared by both pickers below: any signal (vomit/gassiness/stool/a scale
+  // Factor) can independently be "what to measure" OR "what to compare
+  // against" — e.g. gassiness or a stool problem preceding vomiting, not just
+  // ingredients/textures preceding it. Built from the same OutcomeChoice
+  // values via outcomeChoiceLabel so the two pickers' names never drift apart.
+  const eventChoices: OutcomeChoice[] = [
+    { kind: 'vomit' }, { kind: 'gas-more' }, { kind: 'stool-problem' },
+    ...scaleFactors.map((f) => ({ kind: 'factor-scale' as const, factorId: f.id })),
+  ];
+  const outcomeOptions = eventChoices.map((c) => ({
+    value: outcomeToKey(c), label: outcomeChoiceLabel(c, factorNameById),
+  }));
+  const labelSourceOptions = [
+    { value: 'ingredients' as LabelSourceKey, label: 'Ingredients' },
+    { value: 'textures' as LabelSourceKey, label: 'Textures' },
+    { value: 'both' as LabelSourceKey, label: 'Both' },
+    ...eventChoices.map((c) => ({
+      value: outcomeToKey(c) as LabelSourceKey, label: outcomeChoiceLabel(c, factorNameById),
+    })),
   ];
 
   return (
@@ -213,16 +244,12 @@ export function PlotBuilder() {
 
       {mode === 'labels' && (
         <>
-          <Field label="Compare by">
+          <Field label="Compare against" hint="Not just ingredients/textures — pick any signal, e.g. does gassiness or a stool problem precede vomiting?">
             <ChipSelect
-              value={labelCategory}
+              value={labelSourceToKey(labelSource)}
               allowClear={false}
-              onChange={(v) => v && setLabelCategory(v)}
-              options={[
-                { value: 'ingredients', label: 'Ingredients' },
-                { value: 'textures', label: 'Textures' },
-                { value: 'both', label: 'Both' },
-              ]}
+              onChange={(v) => v && setLabelSource(keyToLabelSource(v))}
+              options={labelSourceOptions}
             />
           </Field>
 
@@ -361,6 +388,7 @@ export function PlotBuilder() {
               options={[
                 { value: 'day', label: 'Day' },
                 { value: 'week', label: 'Week' },
+                { value: 'month', label: 'Month' },
               ]}
             />
           </Field>

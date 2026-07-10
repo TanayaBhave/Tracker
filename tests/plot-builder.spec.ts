@@ -2,6 +2,7 @@ import { test, expect } from 'playwright/test';
 import {
   inDateRange, dateOnlyToLocalNoon, isProblemStoolConsistency,
   mealLabels, mealsToExposures, factorEventsToDurationIntervals, bucketCounts,
+  eventTimestampsFor, outcomeChoiceLabel,
 } from '../src/insights/adapters';
 
 // Pure-function unit tests for the Plot Builder's Dexie-record -> engine.ts
@@ -159,5 +160,84 @@ test.describe('bucketCounts', () => {
     const result = bucketCounts(['2026-07-05T00:00:00', '2026-07-01T00:00:00'], 'day');
     expect(result.map((b) => b.bucket)).toEqual(['2026-07-01', '2026-07-05']);
     expect(bucketCounts([], 'day')).toEqual([]);
+  });
+
+  test('month bucketing groups by calendar month regardless of day, across a year', () => {
+    const result = bucketCounts([
+      '2025-08-03T08:00:00',
+      '2025-08-20T08:00:00',
+      '2025-12-01T08:00:00',
+      '2026-01-15T08:00:00',
+    ], 'month');
+    expect(result).toEqual([
+      { bucket: '2025-08', count: 2 },
+      { bucket: '2025-12', count: 1 },
+      { bucket: '2026-01', count: 1 },
+    ]);
+  });
+});
+
+// eventTimestampsFor / outcomeChoiceLabel: the shared helpers that let vomit,
+// gassiness, stool, and scale Factors each be used as EITHER an outcome (what
+// to measure) OR a label source (what to compare against) in Plot Builder —
+// e.g. "does gassiness precede vomiting?" needs gassiness's timestamps
+// extracted the exact same way whichever role it's playing.
+test.describe('eventTimestampsFor', () => {
+  const data = {
+    vomits: [{ timestamp: '2026-07-01T09:00:00' }, { timestamp: '2026-07-02T09:00:00' }],
+    gassiness: [
+      { date: '2026-07-01', level: 'more' },
+      { date: '2026-07-02', level: 'regular' }, // not "more" -> excluded
+    ],
+    stools: [
+      { timestamp: '2026-07-01T10:00:00', consistency: 'hard' },
+      { timestamp: '2026-07-02T10:00:00', consistency: 'formed' }, // not a problem direction -> excluded
+    ],
+    factorEvents: [
+      { factorId: 'fussiness', timestamp: '2026-07-01T11:00:00' },
+      { factorId: 'other-factor', timestamp: '2026-07-01T12:00:00' }, // different factor -> excluded
+      { factorId: 'fussiness' }, // no timestamp (e.g. a duration-only shape) -> excluded
+    ],
+  };
+
+  test('vomit returns every vomit timestamp', () => {
+    expect(eventTimestampsFor({ kind: 'vomit' }, data)).toEqual(['2026-07-01T09:00:00', '2026-07-02T09:00:00']);
+  });
+
+  test('gas-more returns only "more" days, anchored at local noon', () => {
+    expect(eventTimestampsFor({ kind: 'gas-more' }, data)).toEqual(['2026-07-01T12:00:00']);
+  });
+
+  test('stool-problem returns only hard/loose/watery timestamps', () => {
+    expect(eventTimestampsFor({ kind: 'stool-problem' }, data)).toEqual(['2026-07-01T10:00:00']);
+  });
+
+  test('factor-scale returns only that factor\'s timestamped events', () => {
+    expect(eventTimestampsFor({ kind: 'factor-scale', factorId: 'fussiness' }, data)).toEqual(['2026-07-01T11:00:00']);
+  });
+
+  test('an unknown/empty data source never throws, just returns an empty list', () => {
+    const empty = {
+      vomits: [], gassiness: [], stools: [], factorEvents: [],
+    };
+    expect(eventTimestampsFor({ kind: 'vomit' }, empty)).toEqual([]);
+  });
+});
+
+test.describe('outcomeChoiceLabel', () => {
+  const factorNames = new Map([['fussiness', 'Fussiness']]);
+
+  test('gives a fixed human-readable name for each built-in signal', () => {
+    expect(outcomeChoiceLabel({ kind: 'vomit' }, factorNames)).toBe('Vomit');
+    expect(outcomeChoiceLabel({ kind: 'gas-more' }, factorNames)).toBe('Gassiness (more)');
+    expect(outcomeChoiceLabel({ kind: 'stool-problem' }, factorNames)).toBe('Stool (hard/loose/watery)');
+  });
+
+  test('resolves a scale Factor to its own name', () => {
+    expect(outcomeChoiceLabel({ kind: 'factor-scale', factorId: 'fussiness' }, factorNames)).toBe('Fussiness');
+  });
+
+  test('an unknown factorId falls back to a generic label, never throws', () => {
+    expect(outcomeChoiceLabel({ kind: 'factor-scale', factorId: 'missing' }, factorNames)).toBe('Factor');
   });
 });

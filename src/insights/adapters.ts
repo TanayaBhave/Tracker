@@ -22,14 +22,28 @@ export type OutcomeChoice =
 
 export type PlotMode = 'labels' | 'duration' | 'timeseries';
 
+/** What the "labels" mode correlates the outcome against — either a
+ *  categorical attribute of meals (ingredients/textures/both, as before), OR
+ *  another single-instance EVENT signal (vomit/gassiness/stool/a scale
+ *  Factor) treated as one fixed-name label per occurrence. This is what lets
+ *  "does gassiness precede vomiting?" or "does a stool problem precede
+ *  vomiting?" be asked with the exact same per-label rate math as an
+ *  ingredient correlation — any signal that can be an OutcomeChoice can
+ *  equally be used as a label source. Nested under `kind` rather than
+ *  flattening into LabelCategory so the existing meal-based shape/tests are
+ *  untouched. */
+export type LabelSource =
+  | { kind: 'meal'; category: LabelCategory }
+  | { kind: 'event'; event: OutcomeChoice };
+
 export interface PlotConfig {
   rangeStart: string; // YYYY-MM-DD, inclusive
   rangeEnd: string; // YYYY-MM-DD, inclusive
   outcome: OutcomeChoice;
   mode: PlotMode;
-  labelCategory: LabelCategory; // used when mode === 'labels'
+  labelSource: LabelSource; // used when mode === 'labels'
   durationFactorId?: string; // used when mode === 'duration'
-  bucket: 'day' | 'week'; // used when mode === 'timeseries'
+  bucket: 'day' | 'week' | 'month'; // used when mode === 'timeseries'
 }
 
 // ---- Date-range filtering ----
@@ -62,6 +76,51 @@ export function dateOnlyToLocalNoon(date: string): string {
  *  full 5-value Bristol-style enum. */
 export function isProblemStoolConsistency(consistency: string): boolean {
   return consistency === 'hard' || consistency === 'loose' || consistency === 'watery';
+}
+
+export interface EventSourceData {
+  vomits: { timestamp: string }[];
+  gassiness: { date: string; level: string }[];
+  stools: { timestamp: string; consistency: string }[];
+  factorEvents: { factorId: string; timestamp?: string }[];
+}
+
+/** Raw (not yet date-range-filtered) timestamps for one OutcomeChoice signal
+ *  — shared by both the "outcome" (Y axis) and, now, the "labels" mode's
+ *  event-based label sources (X axis), since either role can use any of
+ *  these same underlying signals. `gas-more`/daily records get anchored to
+ *  local noon (see dateOnlyToLocalNoon) so they slot into the same
+ *  timestamp-based association-window math as real instants. */
+export function eventTimestampsFor(choice: OutcomeChoice, data: EventSourceData): string[] {
+  switch (choice.kind) {
+    case 'vomit':
+      return data.vomits.map((v) => v.timestamp);
+    case 'gas-more':
+      return data.gassiness.filter((g) => g.level === 'more').map((g) => dateOnlyToLocalNoon(g.date));
+    case 'stool-problem':
+      return data.stools.filter((s) => isProblemStoolConsistency(s.consistency)).map((s) => s.timestamp);
+    case 'factor-scale':
+      return data.factorEvents
+        .filter((e) => e.factorId === choice.factorId && e.timestamp)
+        .map((e) => e.timestamp as string);
+    default:
+      return [];
+  }
+}
+
+/** Human-readable name for an OutcomeChoice — used for both the outcome
+ *  picker's option labels and, when a signal is chosen as a label source
+ *  instead, as the single fixed label name every one of its exposures
+ *  carries (e.g. every "gassiness (more)" day becomes one exposure labeled
+ *  exactly "Gassiness (more)"). */
+export function outcomeChoiceLabel(choice: OutcomeChoice, factorNameById: Map<string, string>): string {
+  switch (choice.kind) {
+    case 'vomit': return 'Vomit';
+    case 'gas-more': return 'Gassiness (more)';
+    case 'stool-problem': return 'Stool (hard/loose/watery)';
+    case 'factor-scale': return factorNameById.get(choice.factorId) ?? 'Factor';
+    default: return 'Unknown';
+  }
 }
 
 // ---- Label/exposure helpers (meal -> LabelledExposure) ----
@@ -160,11 +219,21 @@ function localWeekKey(ts: string): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Counts how many timestamps fall in each day/week bucket, sorted ascending
- *  by bucket key. Buckets with zero events are simply absent (not zero-filled)
- *  — the caller decides whether to fill gaps for a continuous chart axis. */
-export function bucketCounts(timestamps: string[], bucket: 'day' | 'week'): BucketCount[] {
-  const key = bucket === 'day' ? localDayKey : localWeekKey;
+/** Calendar-month key (YYYY-MM), for "how many per month over the whole
+ *  year" views — e.g. vomit or gassiness frequency across many months. */
+function localMonthKey(ts: string): string {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+/** Counts how many timestamps fall in each day/week/month bucket, sorted
+ *  ascending by bucket key. Buckets with zero events are simply absent (not
+ *  zero-filled) — the caller decides whether to fill gaps for a continuous
+ *  chart axis. */
+export function bucketCounts(timestamps: string[], bucket: 'day' | 'week' | 'month'): BucketCount[] {
+  const key = bucket === 'day' ? localDayKey : bucket === 'week' ? localWeekKey : localMonthKey;
   const counts = new Map<string, number>();
   for (const ts of timestamps) {
     const k = key(ts);
