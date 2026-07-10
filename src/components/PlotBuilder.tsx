@@ -287,7 +287,7 @@ export function PlotBuilder() {
                         return [`${row.outcomes} of ${row.exposures} exposures (${Math.round(Number(value) * 100)}%)`, 'Rate'];
                       }}
                     />
-                    <Bar dataKey="rate" fill={ACCENT} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="rate" fill={ACCENT} radius={[6, 6, 0, 0]} maxBarSize={28} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -360,7 +360,7 @@ export function PlotBuilder() {
                         return [`${row.count} events over ${row.hours.toFixed(1)}h (${Number(value).toFixed(3)}/hr)`, 'Rate'];
                       }}
                     />
-                    <Bar dataKey="rate" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="rate" radius={[6, 6, 0, 0]} maxBarSize={56}>
                       {baselineChartData.map((d) => (
                         <Cell key={d.name} fill={d.name === 'Inside' ? ACCENT : CALM} />
                       ))}
@@ -416,7 +416,7 @@ export function PlotBuilder() {
                     labelStyle={{ color: 'var(--ink)' }}
                     itemStyle={{ color: 'var(--ink)' }}
                   />
-                  <Bar dataKey="count" fill={ACCENT} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill={ACCENT} radius={[6, 6, 0, 0]} maxBarSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
