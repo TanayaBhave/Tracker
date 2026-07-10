@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, baseFields, nowLocalISO, isoToLocal } from '../../db';
+import {
+  db, baseFields, nowLocalISO, nowLocalISOOnDate, isoToLocal,
+} from '../../db';
 import type {
   Meal, FoodItem, FoodCatalogItem, MealReaction, Texture, PacePosition, OralMotorTag, Burped,
 } from '../../db';
@@ -11,7 +13,7 @@ import { BarcodeScanner } from '../BarcodeScanner';
 import { FoodLookupSheet } from '../FoodLookupSheet';
 import { RecipeBuilderSheet } from '../RecipeBuilderSheet';
 
-type Props = { onClose: () => void; editId?: string };
+type Props = { onClose: () => void; editId?: string; defaultDate?: string };
 const toISO = (local: string) => new Date(local).toISOString();
 
 /** Default amount unit for a category — liquids are naturally measured in mL,
@@ -21,8 +23,8 @@ function defaultUnitForCategory(category: FoodItem['category']): 'g' | 'ml' {
   return category === 'liquid' || category === 'formula' || category === 'breastmilk' ? 'ml' : 'g';
 }
 
-export function MealSheet({ onClose, editId }: Props) {
-  const [when, setWhen] = useState(nowLocalISO());
+export function MealSheet({ onClose, editId, defaultDate }: Props) {
+  const [when, setWhen] = useState(defaultDate ? nowLocalISOOnDate(defaultDate) : nowLocalISO());
   const [foodName, setFoodName] = useState('');
   const [catalogId, setCatalogId] = useState<string>();
   const [ingredientIds, setIngredientIds] = useState<string[]>([]);

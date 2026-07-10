@@ -12,10 +12,10 @@ const SYMPTOM_OPTS = [
   { value: 'fewer-wet-diapers', label: 'Fewer wet nappies', tone: 'alert' as const },
 ];
 
-type Props = { onClose: () => void; editId?: string };
+type Props = { onClose: () => void; editId?: string; defaultDate?: string };
 
-export function SymptomSheet({ onClose, editId }: Props) {
-  const [date, setDate] = useState(todayStr());
+export function SymptomSheet({ onClose, editId, defaultDate }: Props) {
+  const [date, setDate] = useState(defaultDate ?? todayStr());
   const [flags, setFlags] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const redFlag = flags.includes('fever') || flags.includes('fewer-wet-diapers');

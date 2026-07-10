@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, baseFields, nowLocalISO, isoToLocal } from '../../db';
+import {
+  db, baseFields, nowLocalISO, nowLocalISOOnDate, isoToLocal,
+} from '../../db';
 import type { MedCatalogItem, NutrientProfile } from '../../db';
 import { Sheet } from '../Sheet';
 import { Field } from '../Fields';
 import { BarcodeScanner } from '../BarcodeScanner';
 import { MedLookupSheet } from '../MedLookupSheet';
 
-type Props = { onClose: () => void; editId?: string };
+type Props = { onClose: () => void; editId?: string; defaultDate?: string };
 const toISO = (local: string) => new Date(local).toISOString();
 
 // Manual "Nutrients per dose" editor rows — same keys/units the Nutrition tab
@@ -35,8 +37,8 @@ const NUTRIENT_FIELDS: { key: keyof NutrientProfile; label: string }[] = [
 
 const QUICK_PICK_CAP = 8;
 
-export function MedSheet({ onClose, editId }: Props) {
-  const [when, setWhen] = useState(nowLocalISO());
+export function MedSheet({ onClose, editId, defaultDate }: Props) {
+  const [when, setWhen] = useState(defaultDate ? nowLocalISOOnDate(defaultDate) : nowLocalISO());
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('ml');

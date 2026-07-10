@@ -17,7 +17,7 @@ import type { Factor, FactorKind } from '../db';
 import { ChipSelect } from './Fields';
 import { FactorEventSheet } from './sheets/FactorEventSheet';
 
-type Props = { onClose: () => void };
+type Props = { onClose: () => void; defaultDate?: string };
 
 const KIND_OPTIONS: { value: FactorKind; label: string }[] = [
   { value: 'instant', label: 'Instant' },
@@ -29,7 +29,7 @@ function kindLabel(kind: FactorKind): string {
   return KIND_OPTIONS.find((o) => o.value === kind)?.label ?? kind;
 }
 
-export function FactorManagerSheet({ onClose }: Props) {
+export function FactorManagerSheet({ onClose, defaultDate }: Props) {
   const factors = useLiveQuery(() => db.factors.where('deleted').equals(0).toArray(), []);
 
   const [newName, setNewName] = useState('');
@@ -194,7 +194,11 @@ export function FactorManagerSheet({ onClose }: Props) {
         </div>
       </div>
       {loggingFactorId && (
-        <FactorEventSheet factorId={loggingFactorId} onClose={() => setLoggingFactorId(undefined)} />
+        <FactorEventSheet
+          factorId={loggingFactorId}
+          defaultDate={defaultDate}
+          onClose={() => setLoggingFactorId(undefined)}
+        />
       )}
     </>
   );

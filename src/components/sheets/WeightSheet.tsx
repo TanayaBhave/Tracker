@@ -4,10 +4,10 @@ import { db, baseFields, todayStr } from '../../db';
 import { Sheet } from '../Sheet';
 import { Field, ChipSelect } from '../Fields';
 
-type Props = { onClose: () => void; editId?: string };
+type Props = { onClose: () => void; editId?: string; defaultDate?: string };
 
-export function WeightSheet({ onClose, editId }: Props) {
-  const [date, setDate] = useState(todayStr());
+export function WeightSheet({ onClose, editId, defaultDate }: Props) {
+  const [date, setDate] = useState(defaultDate ?? todayStr());
   const [weight, setWeight] = useState('');
   const [unit, setUnit] = useState<'kg' | 'lb'>('kg');
   const [notes, setNotes] = useState('');

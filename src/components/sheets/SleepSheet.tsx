@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, baseFields, nowLocalISO, isoToLocal } from '../../db';
+import {
+  db, baseFields, nowLocalISO, nowLocalISOOnDate, isoToLocal,
+} from '../../db';
 import { Sheet } from '../Sheet';
 import { Field, ChipSelect } from '../Fields';
 
-type Props = { onClose: () => void; editId?: string };
+type Props = { onClose: () => void; editId?: string; defaultDate?: string };
 const toISO = (local: string) => new Date(local).toISOString();
 
-export function SleepSheet({ onClose, editId }: Props) {
-  const [start, setStart] = useState(nowLocalISO());
+export function SleepSheet({ onClose, editId, defaultDate }: Props) {
+  const [start, setStart] = useState(defaultDate ? nowLocalISOOnDate(defaultDate) : nowLocalISO());
   const [end, setEnd] = useState('');
   const [quality, setQuality] = useState<'good' | 'restless' | 'poor'>();
   const [notes, setNotes] = useState('');

@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, baseFields, nowLocalISO, isoToLocal } from '../../db';
+import {
+  db, baseFields, nowLocalISO, nowLocalISOOnDate, isoToLocal,
+} from '../../db';
 import type { VomitSeverity, VomitAppearance, VomitForce, BodyPosition } from '../../db';
 import { Sheet } from '../Sheet';
 import { Field, ChipSelect } from '../Fields';
 
-type Props = { onClose: () => void; editId?: string };
+type Props = { onClose: () => void; editId?: string; defaultDate?: string };
 const toISO = (local: string) => new Date(local).toISOString();
 
-export function VomitSheet({ onClose, editId }: Props) {
-  const [when, setWhen] = useState(nowLocalISO());
+export function VomitSheet({ onClose, editId, defaultDate }: Props) {
+  const [when, setWhen] = useState(defaultDate ? nowLocalISOOnDate(defaultDate) : nowLocalISO());
   const [severity, setSeverity] = useState<VomitSeverity>('moderate');
   const [appearance, setAppearance] = useState<VomitAppearance>();
   const [force, setForce] = useState<VomitForce>();

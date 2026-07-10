@@ -8,17 +8,21 @@
 // Factor is resolved from the existing FactorEvent's own `factorId`.
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, baseFields, nowLocalISO, isoToLocal } from '../../db';
+import {
+  db, baseFields, nowLocalISO, nowLocalISOOnDate, isoToLocal,
+} from '../../db';
 import type { FactorKind } from '../../db';
 import { Sheet } from '../Sheet';
 import { Field } from '../Fields';
 
-type Props = { onClose: () => void; editId?: string; factorId?: string };
+type Props = { onClose: () => void; editId?: string; factorId?: string; defaultDate?: string };
 const toISO = (local: string) => new Date(local).toISOString();
 
-export function FactorEventSheet({ onClose, editId, factorId }: Props) {
-  const [when, setWhen] = useState(nowLocalISO());
-  const [start, setStart] = useState(nowLocalISO());
+export function FactorEventSheet({
+  onClose, editId, factorId, defaultDate,
+}: Props) {
+  const [when, setWhen] = useState(defaultDate ? nowLocalISOOnDate(defaultDate) : nowLocalISO());
+  const [start, setStart] = useState(defaultDate ? nowLocalISOOnDate(defaultDate) : nowLocalISO());
   const [end, setEnd] = useState('');
   const [value, setValue] = useState('');
   const [notes, setNotes] = useState('');

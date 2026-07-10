@@ -368,6 +368,18 @@ export function todayStr(): string {
   return nowLocalISO().slice(0, 10);
 }
 
+/** Same shape as nowLocalISO() (a datetime-local-compatible string), but for
+ *  an arbitrary date instead of today — the current clock time is kept, so
+ *  backfilling a past day (e.g. quick-adding from History) defaults to "that
+ *  day, right now's time-of-day", a reasonable starting point the user can
+ *  still adjust, rather than forcing them to re-pick the date every time. */
+export function nowLocalISOOnDate(dateStr: string): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `${dateStr}T${hh}:${mm}`;
+}
+
 // Adds `delta` days (may be negative) to a YYYY-MM-DD string, doing the math
 // in LOCAL time via the Date(y, m, d) constructor rather than parsing the
 // string as UTC (new Date('YYYY-MM-DD') + shift), which can land on the

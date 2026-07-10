@@ -5,11 +5,13 @@ import type { GassinessLog, PhysicalActivityLog, ThreeLevel } from '../../db';
 import { Sheet } from '../Sheet';
 import { Field, ChipSelect } from '../Fields';
 
-type Props = { onClose: () => void; editId?: string };
+type Props = { onClose: () => void; editId?: string; defaultDate?: string };
 
 // ---------- DAILY: gassiness + activity (three-level) ----------
-function ThreeLevelSheet({ onClose, editId, kind }: Props & { kind: 'gas' | 'activity' }) {
-  const [date, setDate] = useState(todayStr());
+function ThreeLevelSheet({
+  onClose, editId, defaultDate, kind,
+}: Props & { kind: 'gas' | 'activity' }) {
+  const [date, setDate] = useState(defaultDate ?? todayStr());
   const [level, setLevel] = useState<ThreeLevel>('regular');
   const [notes, setNotes] = useState('');
   const noun = kind === 'gas' ? 'Gassiness' : 'Activity';

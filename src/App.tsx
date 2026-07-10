@@ -19,7 +19,7 @@ type SheetKey =
   | 'meal' | 'vomit' | 'stool' | 'med' | 'gas' | 'activity' | 'sleep' | 'weight' | 'symptom'
   | 'factorEvent' | null;
 
-type SheetProps = { onClose: () => void; editId?: string };
+type SheetProps = { onClose: () => void; editId?: string; defaultDate?: string };
 const SHEETS: Record<string, (p: SheetProps) => React.ReactElement> = {
   meal: MealSheet, vomit: VomitSheet, stool: StoolSheet, med: MedSheet,
   gas: GasSheet, activity: ActivitySheet, sleep: SleepSheet, weight: WeightSheet, symptom: SymptomSheet,
@@ -27,6 +27,29 @@ const SHEETS: Record<string, (p: SheetProps) => React.ReactElement> = {
 };
 
 type SelectHandler = (id: string, type: string) => void;
+
+// Shared by Home's always-visible grid and History's "+" quick-add popup —
+// identical tiles either way, just a different place to tap them from.
+function QuickAddGrid({
+  open, onOpenFactorManager,
+}: {
+  open: (k: SheetKey) => void; onOpenFactorManager: () => void;
+}) {
+  return (
+    <div className="quickgrid">
+      <button className="qbtn tone-meal" onClick={() => open('meal')}><Utensils size={22} aria-hidden="true" /><span>Meal</span></button>
+      <button className="qbtn tone-vomit" onClick={() => open('vomit')}><VomitIcon size={22} aria-hidden="true" /><span>Vomit</span></button>
+      <button className="qbtn tone-stool" onClick={() => open('stool')}><Baby size={22} aria-hidden="true" /><span>Nappy</span></button>
+      <button className="qbtn tone-med" onClick={() => open('med')}><Pill size={22} aria-hidden="true" /><span>Med</span></button>
+      <button className="qbtn tone-sleep" onClick={() => open('sleep')}><Moon size={22} aria-hidden="true" /><span>Sleep</span></button>
+      <button className="qbtn tone-gas" onClick={() => open('gas')}><Wind size={22} aria-hidden="true" /><span>Gassiness</span></button>
+      <button className="qbtn tone-activity" onClick={() => open('activity')}><Footprints size={22} aria-hidden="true" /><span>Activity</span></button>
+      <button className="qbtn tone-symptom" onClick={() => open('symptom')}><Stethoscope size={22} aria-hidden="true" /><span>Symptoms</span></button>
+      <button className="qbtn tone-weight" onClick={() => open('weight')}><Scale size={22} aria-hidden="true" /><span>Weight</span></button>
+      <button className="qbtn tone-factor" onClick={onOpenFactorManager}><Sparkles size={22} aria-hidden="true" /><span>Factor</span></button>
+    </div>
+  );
+}
 
 function Home({
   open, onSelect, onOpenFactorManager,
@@ -37,25 +60,21 @@ function Home({
   return (
     <>
       <div className="section-label">Quick add</div>
-      <div className="quickgrid">
-        <button className="qbtn tone-meal" onClick={() => open('meal')}><Utensils size={22} aria-hidden="true" /><span>Meal</span></button>
-        <button className="qbtn tone-vomit" onClick={() => open('vomit')}><VomitIcon size={22} aria-hidden="true" /><span>Vomit</span></button>
-        <button className="qbtn tone-stool" onClick={() => open('stool')}><Baby size={22} aria-hidden="true" /><span>Nappy</span></button>
-        <button className="qbtn tone-med" onClick={() => open('med')}><Pill size={22} aria-hidden="true" /><span>Med</span></button>
-        <button className="qbtn tone-sleep" onClick={() => open('sleep')}><Moon size={22} aria-hidden="true" /><span>Sleep</span></button>
-        <button className="qbtn tone-gas" onClick={() => open('gas')}><Wind size={22} aria-hidden="true" /><span>Gassiness</span></button>
-        <button className="qbtn tone-activity" onClick={() => open('activity')}><Footprints size={22} aria-hidden="true" /><span>Activity</span></button>
-        <button className="qbtn tone-symptom" onClick={() => open('symptom')}><Stethoscope size={22} aria-hidden="true" /><span>Symptoms</span></button>
-        <button className="qbtn tone-weight" onClick={() => open('weight')}><Scale size={22} aria-hidden="true" /><span>Weight</span></button>
-        <button className="qbtn tone-factor" onClick={onOpenFactorManager}><Sparkles size={22} aria-hidden="true" /><span>Factor</span></button>
-      </div>
+      <QuickAddGrid open={open} onOpenFactorManager={onOpenFactorManager} />
       <Timeline dateStr={today} onSelect={onSelect} />
     </>
   );
 }
 
-function History({ onSelect }: { onSelect: SelectHandler }) {
+function History({
+  onSelect, open, onOpenFactorManager,
+}: {
+  onSelect: SelectHandler;
+  open: (k: SheetKey, date: string) => void;
+  onOpenFactorManager: (date: string) => void;
+}) {
   const [date, setDate] = useState(todayStr());
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const isTodayOrLater = date >= todayStr();
   const weekdayLabel = new Date(`${date}T00:00:00`).toLocaleDateString([], {
     weekday: 'short', month: 'short', day: 'numeric',
@@ -87,6 +106,29 @@ function History({ onSelect }: { onSelect: SelectHandler }) {
         <div className="hint" style={{ margin: '6px 2px 0' }}>{weekdayLabel}</div>
       </div>
       <Timeline dateStr={date} onSelect={onSelect} />
+
+      <div className="fab-anchor">
+        <button type="button" className="fab" aria-label={`Add to ${weekdayLabel}`} onClick={() => setQuickAddOpen(true)}>+</button>
+      </div>
+
+      {quickAddOpen && (
+        <div className="sheet-backdrop" onClick={() => setQuickAddOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="grip" />
+            <div className="sheet-header">
+              <button type="button" className="btn ghost" onClick={() => setQuickAddOpen(false)}>Cancel</button>
+              <h2>Add to {weekdayLabel}</h2>
+              <span style={{ width: 46 }} />
+            </div>
+            <div className="sheet-body">
+              <QuickAddGrid
+                open={(k) => { setQuickAddOpen(false); open(k, date); }}
+                onOpenFactorManager={() => { setQuickAddOpen(false); onOpenFactorManager(date); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -102,12 +144,20 @@ export default function App() {
   // entry point into FactorEventSheet. Kept as separate state so it can be
   // open independently of the SheetKey-driven quick-add/edit sheets.
   const [factorManagerOpen, setFactorManagerOpen] = useState(false);
+  // Set only when a NEW entry is opened from History's "+" (quick-add for a
+  // day other than today) — carries that day into the opened sheet's initial
+  // date/time so backfilling doesn't require re-picking it. Left undefined
+  // for Home's quick-add (defaults to "now", as before) and for editing an
+  // existing entry (its own saved date always wins once loaded).
+  const [addDate, setAddDate] = useState<string>();
   const SheetComp = sheet ? SHEETS[sheet] : null;
   const dateLabel = new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
-  function openAdd(k: SheetKey) { setSheet(k); setEditId(null); }
-  function handleSelect(id: string, type: string) { setEditId(id); setSheet(type as SheetKey); }
-  function closeSheet() { setSheet(null); setEditId(null); }
+  function openAdd(k: SheetKey, date?: string) { setSheet(k); setEditId(null); setAddDate(date); }
+  function handleSelect(id: string, type: string) { setEditId(id); setSheet(type as SheetKey); setAddDate(undefined); }
+  function closeSheet() { setSheet(null); setEditId(null); setAddDate(undefined); }
+  function openFactorManager(date?: string) { setAddDate(date); setFactorManagerOpen(true); }
+  function closeFactorManager() { setFactorManagerOpen(false); setAddDate(undefined); }
 
   return (
     <div className="app">
@@ -117,9 +167,11 @@ export default function App() {
       </div>
       <div className="content">
         {tab === 'home' && (
-          <Home open={openAdd} onSelect={handleSelect} onOpenFactorManager={() => setFactorManagerOpen(true)} />
+          <Home open={openAdd} onSelect={handleSelect} onOpenFactorManager={() => openFactorManager()} />
         )}
-        {tab === 'history' && <History onSelect={handleSelect} />}
+        {tab === 'history' && (
+          <History onSelect={handleSelect} open={openAdd} onOpenFactorManager={openFactorManager} />
+        )}
         {tab === 'charts' && <ChartsScreen />}
         {tab === 'settings' && <Settings />}
       </div>
@@ -131,8 +183,8 @@ export default function App() {
         <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}><SettingsIcon size={20} aria-hidden="true" />Settings</button>
       </nav>
 
-      {SheetComp && <SheetComp onClose={closeSheet} editId={editId ?? undefined} />}
-      {factorManagerOpen && <FactorManagerSheet onClose={() => setFactorManagerOpen(false)} />}
+      {SheetComp && <SheetComp onClose={closeSheet} editId={editId ?? undefined} defaultDate={addDate} />}
+      {factorManagerOpen && <FactorManagerSheet onClose={closeFactorManager} defaultDate={addDate} />}
     </div>
   );
 }
